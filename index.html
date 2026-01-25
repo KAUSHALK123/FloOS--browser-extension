@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orbit | Mechanical Dashboard</title>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --primary-glow: #5fdcff;
+            --secondary-glow: #a855f7;
+            --glass: rgba(255, 255, 255, 0.05);
+            --border: rgba(255, 255, 255, 0.12);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", sans-serif; }
+        body { height: 100vh; background: #02040a; color: #eaf6ff; overflow: hidden; }
+
+        .bg {
+            position: fixed; inset: 0;
+            background: radial-gradient(circle at 20% 30%, #1c2c6b 0%, transparent 40%),
+                        radial-gradient(circle at 80% 70%, #2e1065 0%, transparent 40%);
+            filter: blur(80px); z-index: -1;
+        }
+
+        /* LAYOUT */
+        .glass-container {
+            height: 90vh; width: 95%; margin: 20px auto;
+            display: grid; grid-template-columns: 300px 1fr 300px; gap: 20px;
+        }
+        .panel { background: var(--glass); backdrop-filter: blur(25px); border-radius: 28px; border: 1px solid var(--border); padding: 25px; display: flex; flex-direction: column; }
+
+        /* BUBBLES */
+        .category-nav { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 100; }
+        .bubble { 
+            padding: 10px 22px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); 
+            border-radius: 50px; cursor: pointer; transition: 0.3s; font-size: 13px;
+        }
+        .bubble.active { background: var(--primary-glow); color: #000; box-shadow: 0 0 20px var(--primary-glow); font-weight: bold; }
+
+        /* CENTER AREA */
+        .center-panel { position: relative; display: flex; align-items: center; justify-content: center; }
+
+        #mainDial { position: relative; width: 450px; height: 450px; transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        #mainDial.hidden { transform: scale(0.6); opacity: 0; pointer-events: none; }
+        
+        .dial-ring { position: absolute; inset: 0; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); background: radial-gradient(circle, rgba(95,220,255,0.02), transparent); }
+
+        /* THE SNAP WRAPPER */
+        #orbitWrapper {
+            position: absolute; inset: 0;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Snappy feedback */
+        }
+
+        .dial-item { 
+            position: absolute; top: 50%; left: 50%; width: 60px; height: 60px; 
+            background: rgba(255,255,255,0.08); border: 1px solid var(--border); border-radius: 50%; 
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+            margin: -30px 0 0 -30px; transition: box-shadow 0.3s;
+        }
+        .dial-item:hover { box-shadow: 0 0 20px var(--primary-glow); border-color: var(--primary-glow); }
+
+        /* MINI CARD */
+        #miniCard {
+            position: absolute; width: 400px; height: 300px;
+            background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border);
+            border-radius: 30px; backdrop-filter: blur(30px);
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; padding: 30px;
+            transform: scale(0.8); opacity: 0; pointer-events: none;
+            transition: 0.5s cubic-bezier(0.2, 1, 0.2, 1);
+        }
+        #miniCard.visible { transform: scale(1); opacity: 1; pointer-events: all; }
+
+        /* AGENT CHAT (RIGHT SIDE) */
+        .chat-area { flex: 1; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; margin: 15px 0; }
+        .chat-msg { background: rgba(255,255,255,0.05); padding: 12px; border-radius: 12px; font-size: 13px; border-left: 3px solid var(--primary-glow); }
+        .chat-input { background: rgba(0,0,0,0.3); border: 1px solid var(--border); padding: 10px; border-radius: 10px; color: white; outline: none; }
+    </style>
+</head>
+<body>
+    <div class="bg"></div>
+
+    <div class="category-nav">
+        <div class="bubble active" onclick="showCategory('dial')">Home</div>
+        <div class="bubble" onclick="showCategory('social')">Social</div>
+        <div class="bubble" onclick="showCategory('work')">Work</div>
+        <div class="bubble plus-btn"><i data-lucide="plus"></i></div>
+    </div>
+
+    <main class="glass-container">
+        <section class="panel left-panel">
+            <h1 id="time" style="font-size: 48px; color: var(--primary-glow);">00:00</h1>
+            <p id="date" style="opacity: 0.6; margin-top: 5px; font-size: 14px; letter-spacing: 2px;">JAN 25 SUN</p>
+            <div style="margin-top: 30px; opacity: 0.4; font-size: 12px; border-top: 1px solid var(--border); padding-top: 20px;">
+                SYSTEM STABLE <br> ORBIT v1.0
+            </div>
+        </section>
+
+        <section class="center-panel">
+            <div id="mainDial">
+                <div class="dial-ring"></div>
+                <div id="orbitWrapper">
+                    <div id="orbitItems"></div>
+                </div>
+            </div>
+            <div id="miniCard"></div>
+        </section>
+
+        <section class="panel right-panel">
+            <p style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--primary-glow);">Agent Orbit</p>
+            <div class="chat-area" id="chatArea">
+                <div class="chat-msg">Ready for commands. Scroll to rotate dial.</div>
+            </div>
+            <input type="text" class="chat-input" placeholder="Type a command...">
+            <div style="margin-top: 15px; padding: 15px; background: linear-gradient(135deg, var(--primary-glow), var(--secondary-glow)); border-radius: 15px; color: #000; font-weight: bold; text-align: center; font-size: 12px;">
+                ACTIVE SCRAPER
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // --- DATA ---
+        const apps = {
+            social: [{icon:'instagram', url:'#'}, {icon:'hash', url:'#'}, {icon:'twitter', url:'#'}],
+            work: [{icon:'mail', url:'#'}, {icon:'github', url:'#'}, {icon:'file-text', url:'#'}]
+        };
+        const dialIcons = ['mail', 'message-circle', 'music', 'settings', 'user', 'camera', 'map', 'layers'];
+        const stepAngle = 360 / dialIcons.length;
+
+        // --- MECHANICAL SCROLL ---
+        let currentStep = 0;
+        const wrapper = document.getElementById('orbitWrapper');
+
+        window.addEventListener('wheel', (e) => {
+            // Check if user is scrolling on dial (prevents scrolling chat from spinning dial)
+            if (document.getElementById('mainDial').classList.contains('hidden')) return;
+
+            const direction = e.deltaY > 0 ? 1 : -1;
+            currentStep += direction;
+            const totalRotation = currentStep * stepAngle;
+
+            wrapper.style.transform = `rotate(${totalRotation}deg)`;
+
+            // Counter-rotate icons
+            document.querySelectorAll('.dial-item').forEach(item => {
+                const baseAngle = parseFloat(item.dataset.angle);
+                item.style.transform = `rotate(${baseAngle}deg) translate(180px) rotate(${-totalRotation - baseAngle}deg)`;
+            });
+        }, { passive: true });
+
+        // --- NAVIGATION ---
+        function showCategory(cat) {
+            const dial = document.getElementById('mainDial');
+            const card = document.getElementById('miniCard');
+            
+            document.querySelectorAll('.bubble').forEach(b => b.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            if (cat === 'dial') {
+                dial.classList.remove('hidden');
+                card.classList.remove('visible');
+            } else {
+                dial.classList.add('hidden');
+                card.classList.add('visible');
+                renderMiniCard(cat);
+            }
+        }
+
+        function renderMiniCard(cat) {
+            const card = document.getElementById('miniCard');
+            card.innerHTML = '';
+            apps[cat].forEach(app => {
+                const div = document.createElement('div');
+                div.style.cssText = "display:flex; flex-direction:column; align-items:center; gap:10px; cursor:pointer;";
+                div.innerHTML = `<div style="width:50px; height:50px; background:var(--glass); border-radius:12px; display:flex; align-items:center; justify-content:center; border:1px solid var(--border);"><i data-lucide="${app.icon}"></i></div>`;
+                card.appendChild(div);
+            });
+            lucide.createIcons();
+        }
+
+        // --- INITIALIZE ---
+        function init() {
+            const orbit = document.getElementById('orbitItems');
+            dialIcons.forEach((icon, i) => {
+                const angle = i * stepAngle;
+                const div = document.createElement('div');
+                div.className = 'dial-item';
+                div.dataset.angle = angle;
+                div.style.transform = `rotate(${angle}deg) translate(180px) rotate(${-angle}deg)`;
+                div.innerHTML = `<i data-lucide="${icon}"></i>`;
+                orbit.appendChild(div);
+            });
+            lucide.createIcons();
+
+            setInterval(() => {
+                const d = new Date();
+                document.getElementById('time').textContent = d.getHours().toString().padStart(2, '0') + ":" + d.getMinutes().toString().padStart(2, '0');
+            }, 1000);
+        }
+
+        init();
+    </script>
+</body>
+</html>
