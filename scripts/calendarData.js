@@ -1,9 +1,16 @@
 // ===== Calendar Data Model v1 =====
 
-const STORAGE_KEY = "orbit_calendar_v1";
+const STORAGE_KEY = "floOS_calendar_v1";
 
 export function loadCalendarData() {
-  const raw = localStorage.getItem(STORAGE_KEY);
+  let raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    const legacy = localStorage.getItem("orbit_calendar_v1");
+    if (legacy) {
+      localStorage.setItem(STORAGE_KEY, legacy);
+      raw = legacy;
+    }
+  }
   if (!raw) {
     return {
       version: 1,
@@ -34,4 +41,24 @@ export function getTasksByDate(dateKey) {
   return data.tasksByDate[dateKey] || [];
 }
 
-//b2 
+// New API expected by app.js
+export function saveTask(dateKey, task) {
+  const data = loadCalendarData();
+  if (!data.tasksByDate[dateKey]) {
+    data.tasksByDate[dateKey] = [];
+  }
+  const toSave = {
+    id: crypto.randomUUID(),
+    subject: task.subject || "",
+    description: task.description || "",
+    link: task.link || "",
+    createdAt: task.createdAt || Date.now(),
+    updatedAt: Date.now()
+  };
+  data.tasksByDate[dateKey].push(toSave);
+  saveCalendarData(data);
+}
+
+export function getTasks(dateKey) {
+  return getTasksByDate(dateKey);
+}
