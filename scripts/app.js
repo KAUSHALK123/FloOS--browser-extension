@@ -1,4 +1,4 @@
-import { saveTask, getTasks } from "./calendarData.js";
+import { saveTask, getTasks, getBookmarks, addBookmark, removeBookmark } from "./storage.js";
 // Calendar data helpers inlined to avoid ES module loading issues
 const STORAGE_KEY = "floOS_calendar_v1";
 
@@ -60,11 +60,11 @@ const apps = {
   ]
 };
 
-const dialIcons = ["mail", "music", "settings", "user", "camera", "layers"];
-const stepAngle = 360 / dialIcons.length;
+const stepAngle = 360 / 6; // 6 slots around the dial
 
 
 let activeDate = null;
+let activeCategory = "dial"; // 'dial' maps to 'home' bookmarks visually
 let rotationOffset = 0;
 let dialItemEls = [];
 
@@ -78,21 +78,43 @@ function openTaskModal(dateKey) {
   linkInput.value = "";
   modal.classList.remove("hidden");
 }
+function getFaviconUrl(url) {
+  try {
+    const u = new URL(url);
+    return `https://www.google.com/s2/favicons?domain=${u.hostname}&sz=64`;
+  } catch {
+    return `https://www.google.com/s2/favicons?domain=${url}&sz=64`;
+  }
+}
+
 function initDial() {
   dialItemEls = [];
   const orbit = document.getElementById("orbitItems");
   orbit.innerHTML = "";
 
-  dialIcons.forEach((icon, i) => {
+  const cat = activeCategory === "dial" ? "home" : activeCategory;
+  const items = getBookmarks(cat).slice(0, 6);
+  const count = Math.max(items.length, 6);
+  for (let i = 0; i < count; i++) {
     const angle = i * stepAngle;
     const div = document.createElement("div");
     div.className = "dial-item";
     div.dataset.angle = angle;
     div.style.transform = `rotate(${angle}deg) translate(180px) rotate(${-angle}deg)`;
-    div.innerHTML = `<img src="assets/icons/${icon}.svg" />`;
+    if (i < items.length) {
+      const it = items[i];
+      const favicon = getFaviconUrl(it.url);
+      div.innerHTML = `<img src="${favicon}" alt="">`;
+      div.title = it.title || it.url;
+      div.addEventListener("click", () => window.open(it.url, "_blank"));
+    } else {
+      div.innerHTML = `<span style="font-size:18px;opacity:.6">+</span>`;
+      div.title = "Add bookmark";
+      div.addEventListener("click", () => openAddBookmarkPrompt(cat));
+    }
     orbit.appendChild(div);
     dialItemEls.push(div);
-  });
+  }
 }
 
 function applyDialRotation() {
@@ -100,6 +122,17 @@ function applyDialRotation() {
     const base = i * stepAngle + rotationOffset;
     const el = dialItemEls[i];
     el.style.transform = `rotate(${base}deg) translate(180px) rotate(${-base}deg)`;
+  }
+}
+
+function openAddBookmarkPrompt(category) {
+  const url = prompt("Bookmark URL (https://...)");
+  if (!url) return;
+  const title = prompt("Title (optional)", url) || url;
+  addBookmark(category, { title, url });
+  initDial();
+  if (category === (activeCategory === "dial" ? "home" : activeCategory)) {
+    renderMiniCard(category);
   }
 }
 
@@ -258,6 +291,52 @@ function renderTaskList(dateKey) {
   });
 }
 
+function renderMiniCard(category) {
+  const card = document.getElementById("miniCard");
+  if (!card) return;
+  card.classList.add("visible");
+  const items = getBookmarks(category);
+  card.innerHTML = "";
+  const header = document.createElement('div');
+  header.className = 'mini-header';
+  header.innerHTML = `
+    <strong style="opacity:.8;text-transform:uppercase;font-size:12px;">${category} bookmarks</strong>
+    <div class="mini-actions">
+      <button id="miniAdd">+ Add</button>
+      <button id="miniClose">× Close</button>
+    </div>
+  `;
+  card.appendChild(header);
+  header.querySelector('#miniAdd').addEventListener('click', () => openAddBookmarkPrompt(category));
+  header.querySelector('#miniClose').addEventListener('click', () => { card.classList.remove('visible'); card.innerHTML = ''; });
+
+  items.forEach(b => {
+    const div = document.createElement("div");
+    div.style.display = "flex";
+    div.style.alignItems = "center";
+    div.style.gap = "8px";
+    div.style.position = "relative";
+    div.setAttribute('draggable', 'true');
+    const fav = getFaviconUrl(b.url);
+    div.innerHTML = `
+      <img src="${fav}" alt="" style="width:20px;height:20px;border-radius:4px;"/>
+      <a href="${b.url}" target="_blank" style="color:#fff;text-decoration:none;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.title}</a>
+      <button data-id="${b.id}" title="Remove" style="position:absolute;right:0;background:none;border:1px solid var(--border);color:#fff;border-radius:8px;font-size:10px;padding:2px 6px;cursor:pointer;opacity:.7;">Del</button>
+    `;
+    const btn = div.querySelector("button");
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      removeBookmark(category, b.id);
+      renderMiniCard(category);
+      initDial();
+    });
+    div.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('application/json', JSON.stringify({ id: b.id, title: b.title, url: b.url }));
+    });
+    card.appendChild(div);
+  });
+}
+
 
 // Initialize after DOM is ready
 window.addEventListener("DOMContentLoaded", () => {
@@ -311,6 +390,60 @@ window.addEventListener("DOMContentLoaded", () => {
       renderTaskList(activeDate);
     });
   }
+
+  // Drag-and-drop target on main dial to add bookmarks to Home
+  if (dial) {
+    dial.addEventListener('dragover', (e) => { e.preventDefault(); dial.classList.add('dragover'); });
+    dial.addEventListener('dragleave', () => dial.classList.remove('dragover'));
+    dial.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dial.classList.remove('dragover');
+      try {
+        const payload = e.dataTransfer.getData('application/json');
+        if (!payload) return;
+        const { title, url } = JSON.parse(payload);
+        addBookmark('home', { title, url });
+        activeCategory = 'dial';
+        initDial();
+      } catch {}
+    });
+  }
+
+    // Category nav handlers
+    document.querySelectorAll('.category-nav .bubble').forEach(bub => {
+      const cat = bub.getAttribute('data-cat');
+      if (!cat) return;
+      bub.addEventListener('click', () => {
+        document.querySelectorAll('.category-nav .bubble').forEach(x => x.classList.remove('active'));
+        bub.classList.add('active');
+        const wasSocial = activeCategory === 'social';
+        activeCategory = cat;
+        initDial();
+        const card = document.getElementById('miniCard');
+        if (cat === 'social') {
+          if (wasSocial && card && card.classList.contains('visible')) {
+            card.classList.remove('visible');
+            card.innerHTML = '';
+          } else {
+            renderMiniCard('social');
+          }
+        } else if (card) {
+          card.classList.remove('visible');
+          card.innerHTML = '';
+        }
+      });
+
+      // Do not show miniCard by default to keep dial unobstructed
+    });
+
+    // Plus bubble opens add-bookmark prompt for current category
+    const plus = document.querySelector('.category-nav .plus-btn');
+    if (plus) {
+      plus.addEventListener('click', () => {
+        const mapped = activeCategory === 'dial' ? 'home' : activeCategory;
+        openAddBookmarkPrompt(mapped);
+      });
+    }
 
   // Live internet time setup
   setupInternetClock();
