@@ -30,45 +30,27 @@
 
     <!-- LEFT PANEL -->
     <section class="panel left-panel">
-        <div id="taskList" class="task-list">
-             <!-- TASK MODAL -->
-<div id="taskModal" class="task-modal hidden">
-  <div class="task-glass">
-    <h3 id="modalDateLabel">Add Task</h3>
+      <button id="leftFlipToggle" class="flip-btn" title="Show tasks" aria-label="Flip">⤾</button>
+      <div class="flip-inner" id="leftFlipInner">
+        <div class="front">
+          <h1 id="time" style="font-size:48px;color:var(--primary-glow);">00:00</h1>
+          <p id="date" style="opacity:.6;margin-top:5px;font-size:14px;letter-spacing:2px;">JAN 25 SUN</p>
 
-    <input id="taskTitle" placeholder="Title *" />
-    <input id="taskTime" type="time" />
-    <textarea id="taskDesc" placeholder="Description"></textarea>
-    <input id="taskLink" placeholder="Link (optional)" />
-
-    <div class="modal-actions">
-      <button id="cancelTask">Cancel</button>
-      <button id="saveTask">Save</button>
-    </div>
-  </div>
-</div>
-
+          <div class="calendar glass-inner">
+            <div class="calendar-header">
+              <button id="prevMonth">◀</button>
+              <span id="monthLabel"></span>
+              <button id="nextMonth">▶</button>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+          </div>
         </div>
-
-      <h1 id="time" style="font-size:48px;color:var(--primary-glow);">00:00</h1>
-      <p id="date" style="opacity:.6;margin-top:5px;font-size:14px;letter-spacing:2px;">
-        JAN 25 SUN
-      </p>
-
-      <!-- CALENDAR (dynamic – Phase C uses this) -->
-      <div class="calendar glass-inner">
-        <div class="calendar-header">
-          <button id="prevMonth">◀</button>
-          <span id="monthLabel"></span>
-          <button id="nextMonth">▶</button>
-          <button id="addTaskBtn" style="margin-left:10px">Add Task</button>
+        <div class="back">
+          <div class="calendar-header">
+            <span id="monthLabelBack"></span>
+          </div>
+          <div class="month-tasks" id="monthTasks"></div>
         </div>
-        <div class="calendar-grid" id="calendarGrid"></div>
-      </div>
-
-      <div style="margin-top:30px;opacity:.4;font-size:12px;border-top:1px solid var(--border);padding-top:20px;">
-        SYSTEM STABLE<br />
-        floOS v1.0
       </div>
     </section>
 

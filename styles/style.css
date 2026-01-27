@@ -98,6 +98,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding-top: 80px; /* add space so nav doesn't overlap dial */
 }
 
 #mainDial {
@@ -301,6 +302,45 @@ body {
   outline-offset: -2px;
 }
 
+/* Calendar flip card */
+#calendarCard {
+  perspective: 1000px;
+}
+#calendarCard .calendar-inner {
+  position: relative;
+  transition: transform 0.6s;
+  transform-style: preserve-3d;
+  min-height: 260px;
+}
+#calendarCard .front, #calendarCard .back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+}
+#calendarCard .back {
+  transform: rotateY(180deg);
+  overflow-y: auto;
+}
+#calendarCard.flip .calendar-inner {
+  transform: rotateY(180deg);
+}
+.calendar-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 0;
+}
+.calendar-task-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 12px;
+}
+
 /* ===== CALENDAR TASK MODAL ===== */
 .task-modal {
   position: fixed;
@@ -356,6 +396,72 @@ body {
   border: none;
   cursor: pointer;
   font-weight: 600;
+}
+
+/* ===== Left Panel Flip (entire card) ===== */
+.left-panel {
+  perspective: 1000px;
+}
+.left-panel .flip-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  cursor: pointer;
+}
+.left-panel .flip-inner {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.6s;
+  height: 100%;
+  min-height: 420px;
+}
+.left-panel .front,
+.left-panel .back {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+}
+.left-panel .back {
+  transform: rotateY(180deg);
+  overflow-y: auto;
+}
+.left-panel.flip .flip-inner {
+  transform: rotateY(180deg);
+}
+
+/* Monthly tasks back view */
+.month-tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 10px;
+}
+.month-task-item {
+  display: grid;
+  grid-template-columns: 110px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 12px;
+}
+.month-task-item .date { opacity: .8; }
+.month-task-item .title { font-weight: 600; }
+.month-task-item .desc { opacity: .8; }
+.month-task-item .open {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--primary-glow);
+  border-radius: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
 }
 
 #saveModal {

@@ -233,6 +233,46 @@ function renderCalendar() {
   grid.appendChild(table);
 }
 
+function renderMonthTasksView() {
+  const tasksEl = document.getElementById("monthTasks");
+  const monthBack = document.getElementById("monthLabelBack");
+  if (!tasksEl || !monthBack) return;
+  tasksEl.innerHTML = "";
+  monthBack.textContent = `${new Date(currentYear, currentMonth).toLocaleString("default", { month: "long" })} ${currentYear}`;
+
+  const totalDays = daysInMonth(currentYear, currentMonth);
+  let count = 0;
+  for (let day = 1; day <= totalDays; day++) {
+    const dateKey = formatDateKey(currentYear, currentMonth, day);
+    const list = getTasks(dateKey);
+    if (!list.length) continue;
+    // Sort by createdAt
+    list.sort((a,b) => (a.createdAt||0) - (b.createdAt||0));
+    list.forEach(t => {
+      const item = document.createElement("div");
+      item.className = "month-task-item";
+      const linkHtml = t.link ? `<button class="open" onclick="window.open('${t.link}')">Open</button>` : "";
+      item.innerHTML = `
+        <span class="date">${dateKey}</span>
+        <div>
+          <div class="title">${t.subject || "(no subject)"}</div>
+          <div class="desc">${t.description || ""}</div>
+        </div>
+        ${linkHtml}
+      `;
+      tasksEl.appendChild(item);
+      count++;
+    });
+  }
+  if (count === 0) {
+    const empty = document.createElement("div");
+    empty.style.opacity = ".7";
+    empty.style.fontSize = "12px";
+    empty.textContent = "No tasks saved for this month.";
+    tasksEl.appendChild(empty);
+  }
+}
+
 
 //c5 
 document.getElementById("prevMonth").onclick = () => {
@@ -378,17 +418,8 @@ window.addEventListener("DOMContentLoaded", () => {
 
   const addBtn = document.getElementById("addTaskBtn");
   if (addBtn) {
-    addBtn.addEventListener("click", () => {
-      const now = new Date();
-      const todayKey = formatDateKey(now.getFullYear(), now.getMonth(), now.getDate());
-      activeDate = selectedDate || todayKey;
-      modalTitle.textContent = `Task for ${activeDate}`;
-      subjectInput.value = "";
-      descInput.value = "";
-      linkInput.value = "";
-      modal.classList.remove("hidden");
-      renderTaskList(activeDate);
-    });
+    // Button removed from UI; ensure no action bound
+    addBtn.remove();
   }
 
   // Drag-and-drop target on main dial to add bookmarks to Home
@@ -444,6 +475,20 @@ window.addEventListener("DOMContentLoaded", () => {
         openAddBookmarkPrompt(mapped);
       });
     }
+
+  // Single flip button next to clock; flips entire left panel
+  const leftFlipBtn = document.getElementById('leftFlipToggle');
+  const leftPanel = document.querySelector('.left-panel');
+  if (leftFlipBtn && leftPanel) {
+    leftFlipBtn.addEventListener('click', () => {
+      if (!leftPanel.classList.contains('flip')) {
+        renderMonthTasksView();
+        leftPanel.classList.add('flip');
+      } else {
+        leftPanel.classList.remove('flip');
+      }
+    });
+  }
 
   // Live internet time setup
   setupInternetClock();
