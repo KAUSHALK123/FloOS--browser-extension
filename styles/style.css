@@ -282,9 +282,10 @@ body {
 }
 .calendar-table tbody td {
   border: 1px solid var(--border);
-  height: 42px;
+  height: 44px;
   text-align: center;
   cursor: pointer;
+  border-radius: 8px;
 }
 .calendar-table tbody td.empty {
   background: rgba(255,255,255,0.03);
@@ -298,8 +299,47 @@ body {
   border-color: var(--primary-glow);
 }
 .calendar-table tbody td.selected {
-  outline: 2px solid var(--primary-glow);
-  outline-offset: -2px;
+  background: rgba(95, 220, 255, 0.25);
+  border-color: transparent;
+  border-radius: 50%;
+}
+
+/* Calendar container styling to match screenshot */
+#calendarBox {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  /* Move calendar up and add space below */
+  margin-top: 8px;
+  margin-bottom: 24px;
+}
+.calendar-title {
+  font-size: 14px;
+  opacity: 0.85;
+  margin-bottom: 8px;
+}
+.calendar-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+.calendar-header button {
+  background: none;
+  border: 1px solid var(--border);
+  color: #fff;
+  border-radius: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.calendar-header #monthLabel {
+  flex: 1;
+  text-align: center;
+  font-weight: 600;
 }
 
 /* Calendar flip card */

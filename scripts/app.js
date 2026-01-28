@@ -158,6 +158,7 @@ function daysInMonth(year, month) {
 function renderCalendar() {
   const grid = document.getElementById("calendarGrid");
   const label = document.getElementById("monthLabel");
+  const titleEl = document.getElementById("calendarTitle");
 
   grid.innerHTML = "";
 
@@ -165,6 +166,13 @@ function renderCalendar() {
   const totalDays = daysInMonth(currentYear, currentMonth);
 
   label.textContent = `${new Date(currentYear, currentMonth).toLocaleString("default", { month: "long" })} ${currentYear}`;
+  // Title shows current date in long form
+  const now = new Date(Date.now() + internetOffsetMs);
+  const weekday = now.toLocaleString("default", { weekday: "long" });
+  const monthName = new Date(currentYear, currentMonth).toLocaleString("default", { month: "long" });
+  if (titleEl) {
+    titleEl.textContent = `${weekday}, ${String(now.getDate())} ${monthName}`;
+  }
 
   const table = document.createElement("table");
   table.className = "calendar-table";
@@ -275,23 +283,28 @@ function renderMonthTasksView() {
 
 
 //c5 
-document.getElementById("prevMonth").onclick = () => {
+function goPrevMonth() {
   currentMonth--;
   if (currentMonth < 0) {
     currentMonth = 11;
     currentYear--;
   }
   renderCalendar();
-};
-
-document.getElementById("nextMonth").onclick = () => {
+  const leftPanel = document.querySelector('.left-panel');
+  if (leftPanel && leftPanel.classList.contains('flip')) renderMonthTasksView();
+}
+function goNextMonth() {
   currentMonth++;
   if (currentMonth > 11) {
     currentMonth = 0;
     currentYear++;
   }
   renderCalendar();
-};
+  const leftPanel = document.querySelector('.left-panel');
+  if (leftPanel && leftPanel.classList.contains('flip')) renderMonthTasksView();
+}
+document.getElementById("prevMonth").onclick = goPrevMonth;
+document.getElementById("nextMonth").onclick = goNextMonth;
 
 
 //c6 
@@ -474,6 +487,16 @@ window.addEventListener("DOMContentLoaded", () => {
         const mapped = activeCategory === 'dial' ? 'home' : activeCategory;
         openAddBookmarkPrompt(mapped);
       });
+    }
+
+    // Calendar wheel navigation
+    const calBox = document.getElementById('calendarBox');
+    if (calBox) {
+      calBox.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = Math.sign(e.deltaY);
+        if (delta > 0) goNextMonth(); else goPrevMonth();
+      }, { passive: false });
     }
 
   // Single flip button next to clock; flips entire left panel
