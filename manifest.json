@@ -17,5 +17,14 @@
   ],
   "host_permissions": [
     "https://worldtimeapi.org/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>", "file://*/*"],
+      "exclude_matches": ["https://chrome.google.com/*"],
+      "js": ["scripts/launcher.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
   ]
 }
