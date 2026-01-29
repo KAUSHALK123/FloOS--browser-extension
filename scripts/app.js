@@ -78,12 +78,18 @@ function openTaskModal(dateKey) {
   linkInput.value = "";
   modal.classList.remove("hidden");
 }
+// Local-only favicon resolver to avoid external requests on boot
 function getFaviconUrl(url) {
   try {
     const u = new URL(url);
-    return `https://www.google.com/s2/favicons?domain=${u.hostname}&sz=64`;
+    const host = u.hostname || "";
+    // Map a couple of known hosts to bundled SVGs
+    if (host.includes("instagram.com")) return "assets/icons/instagram.svg";
+    if (host.includes("mail.google.com")) return "assets/icons/mail.svg";
+    // No external fetch for others during boot
+    return null;
   } catch {
-    return `https://www.google.com/s2/favicons?domain=${url}&sz=64`;
+    return null;
   }
 }
 
@@ -104,7 +110,12 @@ function initDial() {
     if (i < items.length) {
       const it = items[i];
       const favicon = getFaviconUrl(it.url);
-      div.innerHTML = `<img src="${favicon}" alt="">`;
+      if (favicon) {
+        div.innerHTML = `<img src="${favicon}" alt="">`;
+      } else {
+        const initial = (it.title || it.url || "?").trim()[0]?.toUpperCase() || "?";
+        div.innerHTML = `<span style="font-size:16px;opacity:.85">${initial}</span>`;
+      }
       div.title = it.title || it.url;
       div.addEventListener("click", () => window.open(it.url, "_blank"));
     } else {
@@ -513,8 +524,8 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Live internet time setup
-  setupInternetClock();
+  // Local clock on boot (no network calls)
+  setupLocalClock();
 });
 
 // ===== Internet-synced clock =====
@@ -564,11 +575,19 @@ async function syncInternetTime() {
 }
 
 function setupInternetClock() {
-  // initial sync and start ticking
+  // Keep feature available but do not run on boot.
+  // To enable later, call this manually from a user action.
   syncInternetTime();
   if (clockIntervalId) clearInterval(clockIntervalId);
   clockIntervalId = setInterval(updateClock, 1000);
-  // periodic resync (every 5 minutes)
   if (resyncIntervalId) clearInterval(resyncIntervalId);
   resyncIntervalId = setInterval(syncInternetTime, 5 * 60 * 1000);
+}
+
+function setupLocalClock() {
+  // Use only local system time and avoid any network calls
+  internetOffsetMs = 0;
+  updateClock();
+  if (clockIntervalId) clearInterval(clockIntervalId);
+  clockIntervalId = setInterval(updateClock, 1000);
 }
