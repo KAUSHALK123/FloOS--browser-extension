@@ -68,6 +68,7 @@ let activeCategory = "dial"; // 'dial' maps to 'home' bookmarks visually
 let rotationOffset = 0;
 let dialItemEls = [];
 let memoryItems = [];
+let aiAssistEnabled = false; // PHASE 1 toggle: default OFF
 
 /* OPEN MODAL */
 function openTaskModal(dateKey) {
@@ -545,6 +546,13 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // PHASE 1: AI assist boundary log
+  if (aiAssistEnabled) {
+    console.log('floOS: AI assist enabled');
+  } else {
+    console.log('floOS: AI assist disabled');
+  }
+
   // Phase 0.5: load saved memory items and render
   getAllMemoryItems()
     .then(items => {
@@ -758,6 +766,30 @@ function detectIntentType(text) {
 }
 
 function handleManualSaveSubmit(text) {
+  // Phase 1: if AI assist is ON, request suggestion (safe, text-only)
+  if (aiAssistEnabled) {
+    console.log('floOS: AI intent requested');
+    aiClassify(text)
+      .then(suggestion => {
+        if (!suggestion || suggestion.type === 'unsorted') {
+          // Low confidence or failure → fallback to Phase 0
+          const type = detectIntentType(text);
+          console.log(`floOS: save intent detected → ${type}`);
+          showSavePreview(type, text);
+          return;
+        }
+        console.log(`floOS: AI suggestion → ${suggestion.type}`);
+        showAiSuggestion(suggestion.type, text);
+      })
+      .catch(() => {
+        // Failure handling: no popup; fallback
+        const type = detectIntentType(text);
+        console.log(`floOS: save intent detected → ${type}`);
+        showSavePreview(type, text);
+      });
+    return;
+  }
+  // Phase 0 behavior
   const type = detectIntentType(text);
   console.log(`floOS: save intent detected → ${type}`);
   showSavePreview(type, text);
@@ -794,6 +826,79 @@ function showSavePreview(type, text) {
   });
   cancelBtn.addEventListener('click', () => {
     console.log('floOS: manual save cancelled');
+    preview.remove();
+  });
+}
+
+// ===== PHASE 1: AI Assist (Understand, Not Act) =====
+// Expose a simple toggle for future UI controls
+window.floOS_setAiAssist = (on) => { aiAssistEnabled = !!on; console.log(on ? 'floOS: AI assist enabled' : 'floOS: AI assist disabled'); };
+
+async function aiClassify(text) {
+  // Safety: only use raw text; do not access stored data or passwords.
+  // Optional online call could be added later; for now, do lightweight local heuristics.
+  // If low confidence, return unsorted.
+  const t = text.trim();
+  // Explicit keyword wins
+  const manual = detectIntentType(t);
+  if (manual !== 'unsorted') return { type: manual, confidence: 0.99 };
+  // Heuristic: URL → bookmark
+  const urlLike = /https?:\/\//i.test(t) || /^[\w.-]+\.[a-z]{2,}/i.test(t);
+  if (urlLike) return { type: 'bookmark', confidence: 0.7 };
+  // Otherwise low confidence
+  return { type: 'unsorted', confidence: 0.2 };
+}
+
+function showAiSuggestion(suggestedType, text) {
+  const existing = document.getElementById('floosPreview');
+  if (existing) existing.remove();
+  const preview = document.createElement('div');
+  preview.id = 'floosPreview';
+  preview.className = 'floos-preview';
+  preview.innerHTML = `
+    <h4>AI suggests this is a ${suggestedType}</h4>
+    <p>${text.split('\n')[0]}</p>
+    <div class="actions">
+      <button class="confirm">Confirm</button>
+      <button class="override">Override</button>
+      <button class="cancel">Cancel</button>
+    </div>
+  `;
+  document.body.appendChild(preview);
+  const confirmBtn = preview.querySelector('.confirm');
+  const overrideBtn = preview.querySelector('.override');
+  const cancelBtn = preview.querySelector('.cancel');
+  confirmBtn.addEventListener('click', () => {
+    // Proceed through existing manual save preview
+    showSavePreview(suggestedType, text);
+    preview.remove();
+  });
+  overrideBtn.addEventListener('click', () => {
+    // Let user choose manual type
+    const chooser = document.createElement('div');
+    chooser.style.marginTop = '8px';
+    chooser.innerHTML = `
+      <label style="font-size:12px;opacity:.85;margin-right:6px;">Type:</label>
+      <select id="aiOverrideType" style="padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.06);color:#fff;">
+        <option value="task">task</option>
+        <option value="bookmark">bookmark</option>
+        <option value="note">note</option>
+        <option value="unsorted">unsorted</option>
+      </select>
+      <button id="aiOverrideConfirm" style="margin-left:8px;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.08);color:#fff;">Confirm</button>
+    `;
+    preview.appendChild(chooser);
+    const sel = chooser.querySelector('#aiOverrideType');
+    const go = chooser.querySelector('#aiOverrideConfirm');
+    go.addEventListener('click', () => {
+      console.log('floOS: AI suggestion rejected');
+      const chosen = sel.value;
+      showSavePreview(chosen, text);
+      preview.remove();
+    });
+  });
+  cancelBtn.addEventListener('click', () => {
+    console.log('floOS: AI suggestion rejected');
     preview.remove();
   });
 }
