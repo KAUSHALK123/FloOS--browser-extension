@@ -531,6 +531,18 @@ window.addEventListener("DOMContentLoaded", () => {
   mountLauncher();
   setupKeyboard();
   setupContextMenu();
+
+  // Phase 0.4: manual save flow from dashboard chat input
+  const dashInput = document.querySelector('.chat-input');
+  if (dashInput) {
+    dashInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const text = dashInput.value.trim();
+        if (!text) return;
+        handleManualSaveSubmit(text);
+      }
+    });
+  }
 });
 
 // ===== Internet-synced clock =====
@@ -623,6 +635,14 @@ function openPopcard() {
   card.appendChild(input);
   document.body.appendChild(card);
   input.focus();
+  // Phase 0.4: manual save flow from popcard (Enter to preview)
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const text = input.value.trim();
+      if (!text) return;
+      handleManualSaveSubmit(text);
+    }
+  });
   // Close on outside click
   setTimeout(() => {
     const outsideHandler = (ev) => {
@@ -657,6 +677,11 @@ function setupKeyboard() {
         closePopcard();
         console.log('floOS: command popcard closed');
       }
+        const prev = document.getElementById('floosPreview');
+        if (prev) {
+          prev.remove();
+          console.log('floOS: manual save cancelled');
+        }
     }
   });
 }
@@ -682,4 +707,48 @@ function setupContextMenu() {
   });
   document.addEventListener('mousedown', (e) => { if (menuEl && !menuEl.contains(e.target)) hideMenu(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideMenu(); });
+}
+
+// ===== Phase 0.4: Manual Save Flows (UI-only, no persistence) =====
+function detectIntentType(text) {
+  const t = text.trim().toLowerCase();
+  if (t.startsWith('task:')) return 'task';
+  if (t.startsWith('bookmark:')) return 'bookmark';
+  if (t.startsWith('note:')) return 'note';
+  return 'unsorted';
+}
+
+function handleManualSaveSubmit(text) {
+  const type = detectIntentType(text);
+  console.log(`floOS: save intent detected → ${type}`);
+  showSavePreview(type, text);
+}
+
+function showSavePreview(type, text) {
+  const existing = document.getElementById('floosPreview');
+  if (existing) existing.remove();
+  const summary = text.split('\n')[0];
+  const preview = document.createElement('div');
+  preview.id = 'floosPreview';
+  preview.className = 'floos-preview';
+  const label = type === 'unsorted' ? 'Unsorted item – will be reviewed later' : `Type: ${type}`;
+  preview.innerHTML = `
+    <h4>${label}</h4>
+    <p>${summary}</p>
+    <div class="actions">
+      <button class="confirm">Confirm</button>
+      <button class="cancel">Cancel</button>
+    </div>
+  `;
+  document.body.appendChild(preview);
+  const confirmBtn = preview.querySelector('.confirm');
+  const cancelBtn = preview.querySelector('.cancel');
+  confirmBtn.addEventListener('click', () => {
+    console.log(`floOS: manual save confirmed → ${type}`);
+    preview.remove();
+  });
+  cancelBtn.addEventListener('click', () => {
+    console.log('floOS: manual save cancelled');
+    preview.remove();
+  });
 }

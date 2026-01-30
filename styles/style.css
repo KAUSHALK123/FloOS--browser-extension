@@ -334,6 +334,45 @@ body {
 .floos-context-menu button:hover {
   background: rgba(255, 255, 255, 0.1);
 }
+
+/* ===== floOS Save Preview (Phase 0.4) ===== */
+.floos-preview {
+  position: fixed;
+  right: 20px;
+  bottom: 120px; /* above popcard */
+  width: 300px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  backdrop-filter: blur(20px);
+  padding: 12px;
+  z-index: 1000;
+}
+.floos-preview h4 {
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+.floos-preview p {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-bottom: 10px;
+}
+.floos-preview .actions {
+  display: flex;
+  gap: 8px;
+}
+.floos-preview .actions button {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  cursor: pointer;
+}
+.floos-preview .actions button.confirm {
+  border-color: var(--primary-glow);
+}
 /* Calendar Table */
 .calendar-table {
   width: 100%;
