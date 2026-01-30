@@ -67,3 +67,63 @@ export function removeBookmark(category, id) {
   writeJson(KEY_BOOKMARKS, data);
   return data[category].length !== before;
 }
+
+// ===== Memory Items (IndexedDB) =====
+// Store unified manual items: { id, type, content, created_at }
+const DB_NAME = 'floOS_db';
+const STORE_MEMORY = 'memory_items_v1';
+let dbPromise = null;
+
+function openDb() {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = (e) => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE_MEMORY)) {
+        db.createObjectStore(STORE_MEMORY, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return dbPromise;
+}
+
+export async function saveMemoryItem(item) {
+  const db = await openDb();
+  const tx = db.transaction(STORE_MEMORY, 'readwrite');
+  const store = tx.objectStore(STORE_MEMORY);
+  const record = {
+    id: crypto.randomUUID(),
+    type: item.type,
+    content: item.content,
+    created_at: item.created_at || Date.now(),
+  };
+  await new Promise((resolve, reject) => {
+    const req = store.add(record);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+  await new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  return record;
+}
+
+export async function getAllMemoryItems() {
+  const db = await openDb();
+  const tx = db.transaction(STORE_MEMORY, 'readonly');
+  const store = tx.objectStore(STORE_MEMORY);
+  const items = await new Promise((resolve, reject) => {
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+  await new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  return items;
+}

@@ -1,4 +1,4 @@
-import { saveTask, getTasks, getBookmarks, addBookmark, removeBookmark } from "./storage.js";
+import { saveTask, getTasks, getBookmarks, addBookmark, removeBookmark, saveMemoryItem, getAllMemoryItems } from "./storage.js";
 // Calendar data helpers inlined to avoid ES module loading issues
 const STORAGE_KEY = "floOS_calendar_v1";
 
@@ -67,6 +67,7 @@ let activeDate = null;
 let activeCategory = "dial"; // 'dial' maps to 'home' bookmarks visually
 let rotationOffset = 0;
 let dialItemEls = [];
+let memoryItems = [];
 
 /* OPEN MODAL */
 function openTaskModal(dateKey) {
@@ -543,6 +544,18 @@ window.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+
+  // Phase 0.5: load saved memory items and render
+  getAllMemoryItems()
+    .then(items => {
+      memoryItems = items.sort((a,b) => (a.created_at||0) - (b.created_at||0));
+      console.log(`floOS: loaded ${memoryItems.length} items from local storage`);
+      renderMemoryList();
+    })
+    .catch(() => {
+      memoryItems = [];
+      renderMemoryList();
+    });
 });
 
 // ===== Internet-synced clock =====
@@ -709,6 +722,32 @@ function setupContextMenu() {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideMenu(); });
 }
 
+// ===== Phase 0.5: Minimal view rendering for saved items =====
+function renderMemoryList() {
+  const chat = document.getElementById('chatArea');
+  if (!chat) return;
+  let list = document.getElementById('memoryList');
+  if (!list) {
+    list = document.createElement('div');
+    list.id = 'memoryList';
+    list.style.display = 'flex';
+    list.style.flexDirection = 'column';
+    list.style.gap = '6px';
+    list.style.marginBottom = '10px';
+    chat.insertBefore(list, chat.firstChild);
+  }
+  list.innerHTML = '';
+  memoryItems.forEach(it => {
+    const row = document.createElement('div');
+    row.style.fontSize = '12px';
+    row.style.opacity = '0.9';
+    const typeLabel = it.type || 'unsorted';
+    const firstLine = (it.content || '').split('\n')[0];
+    row.textContent = `[${typeLabel}] ${firstLine}`;
+    list.appendChild(row);
+  });
+}
+
 // ===== Phase 0.4: Manual Save Flows (UI-only, no persistence) =====
 function detectIntentType(text) {
   const t = text.trim().toLowerCase();
@@ -743,8 +782,14 @@ function showSavePreview(type, text) {
   document.body.appendChild(preview);
   const confirmBtn = preview.querySelector('.confirm');
   const cancelBtn = preview.querySelector('.cancel');
-  confirmBtn.addEventListener('click', () => {
+  confirmBtn.addEventListener('click', async () => {
     console.log(`floOS: manual save confirmed → ${type}`);
+    try {
+      const saved = await saveMemoryItem({ type, content: text, created_at: Date.now() });
+      memoryItems.push(saved);
+      renderMemoryList();
+      console.log(`floOS: item saved → ${type}`);
+    } catch {}
     preview.remove();
   });
   cancelBtn.addEventListener('click', () => {
