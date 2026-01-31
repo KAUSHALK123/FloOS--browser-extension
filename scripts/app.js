@@ -360,6 +360,7 @@ function renderMonthTasksView() {
           deleteTask(dateKey, t.id);
           renderMonthTasksView();
           renderCalendar();
+          renderTasksInPanel();
         }
       });
       
@@ -509,7 +510,7 @@ function setupDeleteDropZone() {
   // Show drop zone when dragging tasks
   document.addEventListener('dragstart', (e) => {
     const target = e.target;
-    if (target.classList.contains('month-task-item')) {
+    if (target.classList.contains('month-task-item') || target.classList.contains('task-card')) {
       dropZone.classList.remove('hidden');
     }
   });
@@ -541,6 +542,7 @@ function setupDeleteDropZone() {
         deleteTask(data.dateKey, data.id);
         renderMonthTasksView();
         renderCalendar();
+        renderTasksInPanel();
         console.log('floOS: Task deleted via drag-to-delete');
       }
     } catch (err) {
@@ -593,6 +595,7 @@ window.addEventListener("DOMContentLoaded", () => {
     modal.classList.add("hidden");
     renderCalendar();
     renderTaskList(activeDate);
+    renderTasksInPanel();
   };
 
   const addBtn = document.getElementById("addTaskBtn");
@@ -704,14 +707,35 @@ window.addEventListener("DOMContentLoaded", () => {
   setupKeyboard();
   setupContextMenu();
 
-  // Phase 0.4: manual save flow from dashboard chat input
-  const dashInput = document.querySelector('.chat-input');
-  if (dashInput) {
-    dashInput.addEventListener('keydown', (e) => {
+  // Quick task input handler
+  const quickTaskInput = document.getElementById('quickTaskInput');
+  if (quickTaskInput) {
+    quickTaskInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
-        const text = dashInput.value.trim();
+        const text = quickTaskInput.value.trim();
         if (!text) return;
-        handleManualSaveSubmit(text);
+        
+        // Get today's date as the default date
+        const today = new Date();
+        const dateKey = formatDateKey(today.getFullYear(), today.getMonth(), today.getDate());
+        
+        // Save as task
+        saveTask(dateKey, {
+          subject: text,
+          description: '',
+          link: '',
+          createdAt: Date.now()
+        });
+        
+        // Clear input and refresh displays
+        quickTaskInput.value = '';
+        renderCalendar();
+        renderTasksInPanel();
+        
+        const leftPanel = document.querySelector('.left-panel');
+        if (leftPanel && leftPanel.classList.contains('flip')) {
+          renderMonthTasksView();
+        }
       }
     });
   }
@@ -723,17 +747,8 @@ window.addEventListener("DOMContentLoaded", () => {
     console.log('floOS: AI assist disabled');
   }
 
-  // Phase 0.5: load saved memory items and render
-  getAllMemoryItems()
-    .then(items => {
-      memoryItems = items.sort((a,b) => (a.created_at||0) - (b.created_at||0));
-      console.log(`floOS: loaded ${memoryItems.length} items from local storage`);
-      renderMemoryList();
-    })
-    .catch(() => {
-      memoryItems = [];
-      renderMemoryList();
-    });
+  // Render tasks in right panel
+  renderTasksInPanel();
 });
 
 // ===== Internet-synced clock =====
@@ -900,29 +915,114 @@ function setupContextMenu() {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hideMenu(); });
 }
 
-// ===== Phase 0.5: Minimal view rendering for saved items =====
-function renderMemoryList() {
-  const chat = document.getElementById('chatArea');
-  if (!chat) return;
-  let list = document.getElementById('memoryList');
-  if (!list) {
-    list = document.createElement('div');
-    list.id = 'memoryList';
-    list.style.display = 'flex';
-    list.style.flexDirection = 'column';
-    list.style.gap = '6px';
-    list.style.marginBottom = '10px';
-    chat.insertBefore(list, chat.firstChild);
+// ===== Phase 0.5: Render tasks in right panel =====
+function renderTasksInPanel() {
+  const tasksList = document.getElementById('tasksList');
+  if (!tasksList) return;
+  
+  tasksList.innerHTML = '';
+  
+  // Get all tasks from all dates
+  const data = JSON.parse(localStorage.getItem('floOS_tasks_v1') || '{}');
+  const allTasks = [];
+  
+  Object.keys(data).forEach(dateKey => {
+    data[dateKey].forEach(task => {
+      allTasks.push({ ...task, dateKey });
+    });
+  });
+  
+  // Sort by creation date (newest first)
+  allTasks.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  
+  if (allTasks.length === 0) {
+    const empty = document.createElement('div');
+    empty.style.fontSize = '12px';
+    empty.style.opacity = '0.6';
+    empty.style.textAlign = 'center';
+    empty.style.padding = '20px';
+    empty.textContent = 'No tasks yet. Add tasks from the calendar.';
+    tasksList.appendChild(empty);
+    return;
   }
-  list.innerHTML = '';
-  memoryItems.forEach(it => {
-    const row = document.createElement('div');
-    row.style.fontSize = '12px';
-    row.style.opacity = '0.9';
-    const typeLabel = it.type || 'unsorted';
-    const firstLine = (it.content || '').split('\n')[0];
-    row.textContent = `[${typeLabel}] ${firstLine}`;
-    list.appendChild(row);
+  
+  allTasks.forEach(task => {
+    const taskCard = document.createElement('div');
+    taskCard.className = 'task-card';
+    taskCard.setAttribute('draggable', 'true');
+    taskCard.dataset.taskId = task.id;
+    taskCard.dataset.dateKey = task.dateKey;
+    
+    const linkIcon = task.link ? '🔗' : '';
+    taskCard.innerHTML = `
+      <div class="task-card-header">
+        <span class="task-date">${task.dateKey}</span>
+        <button class="task-delete-btn" style="display:none;">×</button>
+      </div>
+      <div class="task-subject">${task.subject || '(no subject)'}</div>
+      ${task.description ? `<div class="task-desc">${task.description}</div>` : ''}
+      ${linkIcon ? `<div class="task-link-icon">${linkIcon}</div>` : ''}
+    `;
+    
+    // Long press to show delete button
+    let pressTimer;
+    taskCard.addEventListener('mousedown', (e) => {
+      if (e.target.classList.contains('task-delete-btn')) return;
+      pressTimer = setTimeout(() => {
+        const deleteBtn = taskCard.querySelector('.task-delete-btn');
+        deleteBtn.style.display = 'block';
+      }, 500);
+    });
+    
+    taskCard.addEventListener('mouseup', () => {
+      clearTimeout(pressTimer);
+    });
+    
+    taskCard.addEventListener('mouseleave', () => {
+      clearTimeout(pressTimer);
+    });
+    
+    // Delete button click
+    const deleteBtn = taskCard.querySelector('.task-delete-btn');
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm(`Delete task: ${task.subject || '(no subject)'}?`)) {
+        deleteTask(task.dateKey, task.id);
+        renderTasksInPanel();
+        renderCalendar();
+        const leftPanel = document.querySelector('.left-panel');
+        if (leftPanel && leftPanel.classList.contains('flip')) {
+          renderMonthTasksView();
+        }
+      }
+    });
+    
+    // Drag start
+    taskCard.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('application/json', JSON.stringify({ 
+        type: 'task',
+        id: task.id, 
+        dateKey: task.dateKey,
+        subject: task.subject 
+      }));
+      taskCard.style.opacity = '0.5';
+    });
+    
+    taskCard.addEventListener('dragend', () => {
+      taskCard.style.opacity = '1';
+    });
+    
+    // Click to open link if available
+    if (task.link) {
+      taskCard.style.cursor = 'pointer';
+      taskCard.addEventListener('click', (e) => {
+        if (!e.target.classList.contains('task-delete-btn')) {
+          window.open(task.link, '_blank');
+        }
+      });
+    }
+    
+    tasksList.appendChild(taskCard);
   });
 }
 
