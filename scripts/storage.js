@@ -37,6 +37,18 @@ export function saveTask(dateKey, task) {
   return toSave;
 }
 
+export function deleteTask(dateKey, taskId) {
+  const data = readJson(KEY_TASKS, {});
+  if (!data[dateKey]) return false;
+  const before = data[dateKey].length;
+  data[dateKey] = data[dateKey].filter(t => t.id !== taskId);
+  if (data[dateKey].length === 0) {
+    delete data[dateKey];
+  }
+  writeJson(KEY_TASKS, data);
+  return data[dateKey]?.length !== before || before > 0;
+}
+
 // Bookmarks
 // Schema: { [category: string]: Array<{id,title,url,createdAt,updatedAt}> }
 export function getBookmarks(category) {

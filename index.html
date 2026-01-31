@@ -15,13 +15,19 @@
 <body>
   <div class="bg"></div>
 
+  <!-- DELETE DROP ZONE (appears when dragging tasks) -->
+  <div id="deleteDropZone" class="delete-drop-zone hidden">
+    <div class="dustbin-icon">🗑️</div>
+    <div class="dustbin-text">Drop here to delete</div>
+  </div>
+
   <!-- TOP CATEGORY NAV -->
   <div class="category-nav">
     <div class="bubble active" data-cat="dial">Home</div>
     <div class="bubble" data-cat="social">Social</div>
     <div class="bubble" data-cat="work">Work</div>
-    <div class="bubble plus-btn">
-      <i data-lucide="plus"></i>
+    <div class="bubble plus-btn" id="addBookmarkBtn">
+      +
     </div>
   </div>
 
@@ -68,9 +74,14 @@
 
     <!-- RIGHT PANEL -->
     <section class="panel right-panel">
-      <p style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--primary-glow);">
-        Agent FloOs
-      </p>
+      <div class="right-panel-header">
+        <p style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--primary-glow);margin:0;">
+          Agent FloOs
+        </p>
+        <button id="settingsBtn" class="settings-icon-btn" title="Settings">
+          ⚙
+        </button>
+      </div>
 
       <div class="chat-area" id="chatArea">
         <div class="chat-msg">

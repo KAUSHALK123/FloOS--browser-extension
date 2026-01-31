@@ -1,4 +1,4 @@
-import { saveTask, getTasks, getBookmarks, addBookmark, removeBookmark, saveMemoryItem, getAllMemoryItems } from "./storage.js";
+import { saveTask, getTasks, getBookmarks, addBookmark, removeBookmark, deleteTask, saveMemoryItem, getAllMemoryItems } from "./storage.js";
 // Calendar data helpers inlined to avoid ES module loading issues
 const STORAGE_KEY = "floOS_calendar_v1";
 
@@ -148,7 +148,54 @@ function openAddBookmarkPrompt(category) {
     renderMiniCard(category);
   }
 }
+function openCategorySelector() {
+  const existingModal = document.getElementById('categorySelectorModal');
+  if (existingModal) existingModal.remove();
 
+  const modal = document.createElement('div');
+  modal.id = 'categorySelectorModal';
+  modal.className = 'category-selector-modal';
+  modal.innerHTML = `
+    <div class="category-selector-glass">
+      <h3>Add Bookmark</h3>
+      <p style="font-size:12px;opacity:0.8;margin-bottom:15px;">Choose a category for your bookmark</p>
+      <div class="category-options">
+        <button class="category-option" data-category="home">
+          <span class="icon">🏠</span>
+          <span class="label">Home</span>
+        </button>
+        <button class="category-option" data-category="social">
+          <span class="icon">👥</span>
+          <span class="label">Social</span>
+        </button>
+        <button class="category-option" data-category="work">
+          <span class="icon">💼</span>
+          <span class="label">Work</span>
+        </button>
+      </div>
+      <button class="cancel-btn">Cancel</button>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  modal.querySelectorAll('.category-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const category = btn.getAttribute('data-category');
+      modal.remove();
+      openAddBookmarkPrompt(category);
+    });
+  });
+
+  modal.querySelector('.cancel-btn').addEventListener('click', () => {
+    modal.remove();
+  });
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      modal.remove();
+    }
+  });
+}
 /* CLOSE MODAL */
 // Old modal handlers removed; new handlers added at bottom of file
 let currentMonth = new Date().getMonth(); // 0-11
@@ -272,6 +319,10 @@ function renderMonthTasksView() {
     list.forEach(t => {
       const item = document.createElement("div");
       item.className = "month-task-item";
+      item.setAttribute('draggable', 'true');
+      item.dataset.taskId = t.id;
+      item.dataset.dateKey = dateKey;
+      
       const linkHtml = t.link ? `<button class="open" onclick="window.open('${t.link}')">Open</button>` : "";
       item.innerHTML = `
         <span class="date">${dateKey}</span>
@@ -280,7 +331,53 @@ function renderMonthTasksView() {
           <div class="desc">${t.description || ""}</div>
         </div>
         ${linkHtml}
+        <button class="delete-btn" style="display:none;">Delete</button>
       `;
+      
+      // Long press to show delete button
+      let pressTimer;
+      item.addEventListener('mousedown', (e) => {
+        if (e.target.classList.contains('open') || e.target.classList.contains('delete-btn')) return;
+        pressTimer = setTimeout(() => {
+          const deleteBtn = item.querySelector('.delete-btn');
+          deleteBtn.style.display = 'block';
+        }, 500);
+      });
+      
+      item.addEventListener('mouseup', () => {
+        clearTimeout(pressTimer);
+      });
+      
+      item.addEventListener('mouseleave', () => {
+        clearTimeout(pressTimer);
+      });
+      
+      // Delete button click
+      const deleteBtn = item.querySelector('.delete-btn');
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm(`Delete task: ${t.subject || "(no subject)"}?`)) {
+          deleteTask(dateKey, t.id);
+          renderMonthTasksView();
+          renderCalendar();
+        }
+      });
+      
+      // Drag start
+      item.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('application/json', JSON.stringify({ 
+          type: 'task',
+          id: t.id, 
+          dateKey: dateKey,
+          subject: t.subject 
+        }));
+        item.style.opacity = '0.5';
+      });
+      
+      item.addEventListener('dragend', () => {
+        item.style.opacity = '1';
+      });
+      
       tasksEl.appendChild(item);
       count++;
     });
@@ -404,11 +501,67 @@ function renderMiniCard(category) {
 }
 
 
+// Setup delete drop zone for task deletion
+function setupDeleteDropZone() {
+  const dropZone = document.getElementById('deleteDropZone');
+  if (!dropZone) return;
+
+  // Show drop zone when dragging tasks
+  document.addEventListener('dragstart', (e) => {
+    const target = e.target;
+    if (target.classList.contains('month-task-item')) {
+      dropZone.classList.remove('hidden');
+    }
+  });
+
+  document.addEventListener('dragend', () => {
+    dropZone.classList.remove('dragover');
+    // Hide after a short delay
+    setTimeout(() => {
+      dropZone.classList.add('hidden');
+    }, 300);
+  });
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropZone.classList.add('dragover');
+  });
+
+  dropZone.addEventListener('dragleave', () => {
+    dropZone.classList.remove('dragover');
+  });
+
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    
+    try {
+      const data = JSON.parse(e.dataTransfer.getData('application/json'));
+      if (data.type === 'task') {
+        deleteTask(data.dateKey, data.id);
+        renderMonthTasksView();
+        renderCalendar();
+        console.log('floOS: Task deleted via drag-to-delete');
+      }
+    } catch (err) {
+      console.error('floOS: Error deleting task', err);
+    }
+    
+    setTimeout(() => {
+      dropZone.classList.add('hidden');
+    }, 300);
+  });
+}
+
+
 // Initialize after DOM is ready
 window.addEventListener("DOMContentLoaded", () => {
   initDial();
   renderCalendar();
   console.log("floOS: app.js initialized");
+
+  // Setup delete drop zone
+  setupDeleteDropZone();
 
   const dial = document.getElementById("mainDial");
   dial.addEventListener(
@@ -499,6 +652,23 @@ window.addEventListener("DOMContentLoaded", () => {
       plus.addEventListener('click', () => {
         const mapped = activeCategory === 'dial' ? 'home' : activeCategory;
         openAddBookmarkPrompt(mapped);
+      });
+    }
+
+    // Top right + button opens category selector
+    const addBookmarkBtn = document.getElementById('addBookmarkBtn');
+    if (addBookmarkBtn) {
+      addBookmarkBtn.addEventListener('click', () => {
+        openCategorySelector();
+      });
+    }
+
+    // Settings button (non-functional for now)
+    const settingsBtn = document.getElementById('settingsBtn');
+    if (settingsBtn) {
+      settingsBtn.addEventListener('click', () => {
+        console.log('floOS: Settings button clicked (not functional yet)');
+        // TODO: Add settings functionality later
       });
     }
 

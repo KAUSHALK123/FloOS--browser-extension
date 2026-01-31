@@ -93,6 +93,62 @@ body {
   color: #fff;
 }
 
+.bubble.plus-btn {
+  font-size: 20px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+}
+
+/* --- DELETE DROP ZONE --- */
+.delete-drop-zone {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 120px;
+  background: rgba(255, 50, 50, 0.1);
+  border: 2px dashed rgba(255, 50, 50, 0.5);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  z-index: 200;
+  transition: all 0.3s;
+  backdrop-filter: blur(10px);
+}
+
+.delete-drop-zone.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(20px);
+}
+
+.delete-drop-zone.dragover {
+  background: rgba(255, 50, 50, 0.3);
+  border-color: rgba(255, 50, 50, 0.9);
+  box-shadow: 0 0 30px rgba(255, 50, 50, 0.5);
+  transform: translateX(-50%) scale(1.1);
+}
+
+.dustbin-icon {
+  font-size: 48px;
+  opacity: 0.9;
+}
+
+.dustbin-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ff6b6b;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
 /* Ensure + icon shows even without external icon library */
 /* plus button relies on icon markup */
 
@@ -228,6 +284,34 @@ body {
 }
 
 /* --- AGENT PANEL (RIGHT) --- */
+.right-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.settings-icon-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--primary-glow);
+  font-size: 18px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.settings-icon-btn:hover {
+  background: rgba(95, 220, 255, 0.15);
+  border-color: var(--primary-glow);
+  box-shadow: 0 0 15px rgba(95, 220, 255, 0.3);
+}
+
 .chat-area {
   flex: 1;
   display: flex;
@@ -505,6 +589,86 @@ body {
   z-index: 9999;
 }
 
+/* ===== CATEGORY SELECTOR MODAL ===== */
+.category-selector-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.category-selector-glass {
+  width: 400px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  backdrop-filter: blur(30px);
+  padding: 25px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.category-selector-glass h3 {
+  margin: 0;
+  color: var(--primary-glow);
+}
+
+.category-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 10px 0;
+}
+
+.category-option {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 15px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: white;
+}
+
+.category-option:hover {
+  background: rgba(95, 220, 255, 0.15);
+  border-color: var(--primary-glow);
+  box-shadow: 0 0 20px rgba(95, 220, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.category-option .icon {
+  font-size: 32px;
+}
+
+.category-option .label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cancel-btn {
+  padding: 10px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.05);
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.cancel-btn:hover {
+  background: rgba(255,255,255,0.1);
+}
+
 .task-modal.hidden {
   display: none;
 }
@@ -554,6 +718,8 @@ body {
 /* ===== Left Panel Flip (entire card) ===== */
 .left-panel {
   perspective: 1000px;
+  position: relative;
+  overflow: hidden;
 }
 .left-panel .flip-btn {
   position: absolute;
@@ -565,26 +731,53 @@ body {
   background: rgba(255,255,255,0.06);
   color: #fff;
   cursor: pointer;
+  z-index: 10;
 }
 .left-panel .flip-inner {
   position: relative;
   transform-style: preserve-3d;
   transition: transform 0.6s;
   height: 100%;
-  min-height: 420px;
+  min-height: 500px;
+  display: flex;
+  flex-direction: column;
 }
 .left-panel .front,
 .left-panel .back {
   position: absolute;
   inset: 0;
   backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  padding-top: 40px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.left-panel .front {
+  gap: 10px;
 }
 .left-panel .back {
   transform: rotateY(180deg);
-  overflow-y: auto;
+  padding: 10px 0;
 }
 .left-panel.flip .flip-inner {
   transform: rotateY(180deg);
+}
+
+/* Time display in left panel */
+#time {
+  margin: 0 0 15px 0;
+  padding: 0;
+}
+
+/* Calendar container - prevent overlap */
+#calendarBox {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px;
+  margin: 0;
+  flex-shrink: 0;
 }
 
 /* Monthly tasks back view */
@@ -596,7 +789,7 @@ body {
 }
 .month-task-item {
   display: grid;
-  grid-template-columns: 110px 1fr auto;
+  grid-template-columns: 110px 1fr auto auto;
   gap: 10px;
   align-items: center;
   padding: 10px;
@@ -604,6 +797,16 @@ body {
   border: 1px solid var(--border);
   border-radius: 10px;
   font-size: 12px;
+  cursor: grab;
+  transition: all 0.3s;
+  position: relative;
+}
+.month-task-item:active {
+  cursor: grabbing;
+}
+.month-task-item:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: var(--primary-glow);
 }
 .month-task-item .date { opacity: .8; }
 .month-task-item .title { font-weight: 600; }
@@ -615,6 +818,21 @@ body {
   border-radius: 8px;
   padding: 4px 10px;
   cursor: pointer;
+}
+.month-task-item .delete-btn {
+  background: rgba(255, 50, 50, 0.2);
+  border: 1px solid rgba(255, 50, 50, 0.5);
+  color: #ff6b6b;
+  border-radius: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+.month-task-item .delete-btn:hover {
+  background: rgba(255, 50, 50, 0.4);
+  border-color: #ff6b6b;
 }
 
 #saveModal {
