@@ -862,16 +862,24 @@ body {
   backface-visibility: hidden;
   display: flex;
   flex-direction: column;
-  padding-top: 40px;
+  padding-top: 16px;
   overflow-y: auto;
   overflow-x: hidden;
 }
 .left-panel .front {
-  gap: 10px;
+  gap: 6px;
 }
 .left-panel .back {
   transform: rotateY(180deg);
-  padding: 10px 0;
+  padding: 8px 0 10px;
+}
+.left-panel .back .calendar-header {
+  margin: 0 52px 10px 8px;
+  justify-content: flex-start;
+}
+.left-panel .back #monthLabelBack {
+  flex: 0 1 auto;
+  text-align: left;
 }
 .left-panel.flip .flip-inner {
   transform: rotateY(180deg);
@@ -879,7 +887,7 @@ body {
 
 /* Time display in left panel */
 #time {
-  margin: 0 0 15px 0;
+  margin: 0 0 8px 0;
   padding: 0;
 }
 
@@ -898,11 +906,11 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding-top: 10px;
+  padding-top: 4px;
 }
 .month-task-item {
   display: grid;
-  grid-template-columns: 110px 1fr auto auto;
+  grid-template-columns: 110px minmax(0, 1fr) auto auto;
   gap: 10px;
   align-items: center;
   padding: 10px;
@@ -914,6 +922,9 @@ body {
   transition: all 0.3s;
   position: relative;
 }
+.month-task-item > div {
+  min-width: 0;
+}
 .month-task-item:active {
   cursor: grabbing;
 }
@@ -924,6 +935,10 @@ body {
 .month-task-item .date { opacity: .8; }
 .month-task-item .title { font-weight: 600; }
 .month-task-item .desc { opacity: .8; }
+.month-task-item .title,
+.month-task-item .desc {
+  overflow-wrap: anywhere;
+}
 .month-task-item .open {
   background: none;
   border: 1px solid var(--border);
