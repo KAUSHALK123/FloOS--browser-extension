@@ -231,22 +231,24 @@ body {
 /* --- MINI APP CARD --- */
 #miniCard {
   position: absolute;
-  width: 450px;
-  height: 320px;
+  width: min(520px, calc(100vw - 380px));
+  height: min(360px, calc(100vh - 260px));
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--border);
   border-radius: 32px;
   backdrop-filter: blur(40px);
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  padding: 35px;
-  transform: translateY(30px) scale(0.85);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: max-content;
+  gap: 14px;
+  padding: 22px;
+  transform: translateY(18px) scale(0.95);
   opacity: 0;
   pointer-events: none;
   transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
   right: 20px;
   bottom: 20px;
+  overflow: hidden;
 }
 .dial-item img {
   width: 24px;
@@ -275,6 +277,13 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+#miniCard .mini-header strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 #miniCard .mini-actions button {
   padding: 6px 10px;
@@ -283,6 +292,34 @@ body {
   background: rgba(255,255,255,0.06);
   color: #fff;
   cursor: pointer;
+}
+
+#miniCard .mini-bookmark-item {
+  display: grid !important;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+}
+
+#miniCard .mini-bookmark-item a {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#miniCard .mini-bookmark-item button {
+  position: static !important;
+  justify-self: end;
+}
+
+#miniCard .mini-bookmark-item img,
+#miniCard .mini-bookmark-item span {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
 }
 
 /* --- AGENT PANEL (RIGHT) --- */
