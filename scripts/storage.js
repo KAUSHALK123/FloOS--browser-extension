@@ -24,12 +24,15 @@ export function getTasks(dateKey) {
 export function saveTask(dateKey, task) {
   const data = readJson(KEY_TASKS, {});
   if (!data[dateKey]) data[dateKey] = [];
+  const createdAt = task.createdAt || Date.now();
   const toSave = {
     id: crypto.randomUUID(),
     subject: task.subject || "",
     description: task.description || "",
     link: task.link || "",
-    createdAt: task.createdAt || Date.now(),
+    createdAt,
+    // Lower order appears first. Default keeps newest tasks near the top.
+    order: typeof task.order === "number" ? task.order : -createdAt,
     updatedAt: Date.now(),
   };
   data[dateKey].push(toSave);
@@ -47,6 +50,29 @@ export function deleteTask(dateKey, taskId) {
   }
   writeJson(KEY_TASKS, data);
   return data[dateKey]?.length !== before || before > 0;
+}
+
+export function reorderTasks(orderEntries) {
+  const data = readJson(KEY_TASKS, {});
+  let changed = false;
+
+  orderEntries.forEach((entry, index) => {
+    const list = data[entry.dateKey] || [];
+    const task = list.find(t => t.id === entry.id);
+    if (!task) return;
+
+    if (task.order !== index) {
+      task.order = index;
+      task.updatedAt = Date.now();
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    writeJson(KEY_TASKS, data);
+  }
+
+  return changed;
 }
 
 // Bookmarks

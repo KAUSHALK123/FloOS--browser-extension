@@ -1,4 +1,4 @@
-import { saveTask, getTasks, getBookmarks, addBookmark, removeBookmark, deleteTask, saveMemoryItem, getAllMemoryItems } from "./storage.js";
+import { saveTask, getTasks, getBookmarks, addBookmark, removeBookmark, deleteTask, reorderTasks, saveMemoryItem, getAllMemoryItems } from "./storage.js";
 // Calendar data helpers inlined to avoid ES module loading issues
 const STORAGE_KEY = "floOS_calendar_v1";
 
@@ -932,8 +932,13 @@ function renderTasksInPanel() {
     });
   });
   
-  // Sort by creation date (newest first)
-  allTasks.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+  // Sort by priority order (lower first), then newest first.
+  allTasks.sort((a, b) => {
+    const aOrder = typeof a.order === 'number' ? a.order : Number.MAX_SAFE_INTEGER;
+    const bOrder = typeof b.order === 'number' ? b.order : Number.MAX_SAFE_INTEGER;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  });
   
   if (allTasks.length === 0) {
     const empty = document.createElement('div');
@@ -946,6 +951,59 @@ function renderTasksInPanel() {
     return;
   }
   
+  const persistCurrentOrder = () => {
+    const orderedEntries = Array.from(tasksList.querySelectorAll('.task-card')).map((el, index) => ({
+      id: el.dataset.taskId,
+      dateKey: el.dataset.dateKey,
+      order: index
+    }));
+
+    if (!orderedEntries.length) return;
+    const changed = reorderTasks(orderedEntries);
+    if (changed) {
+      renderCalendar();
+      const leftPanel = document.querySelector('.left-panel');
+      if (leftPanel && leftPanel.classList.contains('flip')) {
+        renderMonthTasksView();
+      }
+    }
+  };
+
+  const getDragAfterElement = (container, y) => {
+    const draggableCards = [...container.querySelectorAll('.task-card:not(.dragging)')];
+    let closest = null;
+    let closestOffset = Number.NEGATIVE_INFINITY;
+
+    draggableCards.forEach(card => {
+      const box = card.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closestOffset) {
+        closestOffset = offset;
+        closest = card;
+      }
+    });
+
+    return closest;
+  };
+
+  tasksList.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    const draggingCard = tasksList.querySelector('.task-card.dragging');
+    if (!draggingCard) return;
+
+    const afterElement = getDragAfterElement(tasksList, e.clientY);
+    if (!afterElement) {
+      tasksList.appendChild(draggingCard);
+    } else {
+      tasksList.insertBefore(draggingCard, afterElement);
+    }
+  });
+
+  tasksList.addEventListener('drop', (e) => {
+    e.preventDefault();
+    persistCurrentOrder();
+  });
+
   allTasks.forEach(task => {
     const taskCard = document.createElement('div');
     taskCard.className = 'task-card';
@@ -1005,11 +1063,14 @@ function renderTasksInPanel() {
         dateKey: task.dateKey,
         subject: task.subject 
       }));
+      taskCard.classList.add('dragging');
       taskCard.style.opacity = '0.5';
     });
     
     taskCard.addEventListener('dragend', () => {
+      taskCard.classList.remove('dragging');
       taskCard.style.opacity = '1';
+      persistCurrentOrder();
     });
     
     // Click to open link if available
