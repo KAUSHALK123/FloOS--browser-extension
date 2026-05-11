@@ -44,6 +44,7 @@ body {
   display: grid;
   grid-template-columns: 300px 1fr 300px;
   gap: 20px;
+  min-height: 0;
 }
 
 .panel {
@@ -55,6 +56,7 @@ body {
   display: flex;
   flex-direction: column;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  min-height: 0;
 }
 
 /* --- BUBBLE NAVIGATION --- */
@@ -317,9 +319,10 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow-y: auto;
+  overflow: hidden;
   margin: 10px 0;
   padding-right: 5px;
+  min-height: 0;
 }
 
 .tasks-title {
@@ -332,7 +335,15 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 6px;
 }
+
+.tasks-list::-webkit-scrollbar { width: 4px; }
+.tasks-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
 
 .task-card {
   background: rgba(255, 255, 255, 0.05);
