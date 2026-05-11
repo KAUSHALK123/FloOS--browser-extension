@@ -1,4 +1,4 @@
-import { saveTask, getTasks, getBookmarks, addBookmark, removeBookmark, deleteTask, reorderTasks, saveMemoryItem, getAllMemoryItems } from "./storage.js";
+import { saveTask, getTasks, getBookmarks, addBookmark, removeBookmark, deleteTask, reorderTasks, updateTask, saveMemoryItem, getAllMemoryItems } from "./storage.js";
 // Calendar data helpers inlined to avoid ES module loading issues
 const STORAGE_KEY = "floOS_calendar_v1";
 
@@ -69,16 +69,26 @@ let rotationOffset = 0;
 let dialItemEls = [];
 let memoryItems = [];
 let aiAssistEnabled = false; // PHASE 1 toggle: default OFF
+let editingTask = null;
 
 /* OPEN MODAL */
-function openTaskModal(dateKey) {
+function openTaskModal(dateKey, task = null) {
   activeDate = dateKey;
-  modalLabel.textContent = `Task for ${dateKey}`;
-  titleInput.value = "";
-  timeInput.value = "";
-  descInput.value = "";
-  linkInput.value = "";
+  editingTask = task ? { dateKey: task.dateKey, id: task.id } : null;
+  modalTitle.textContent = task ? "Edit Task" : `Task for ${dateKey}`;
+  subjectInput.value = task ? (task.subject || "") : "";
+  descInput.value = task ? (task.description || "") : "";
+  linkInput.value = task ? (task.link || "") : "";
+  const saveBtn = document.getElementById("saveModal");
+  if (saveBtn) saveBtn.textContent = task ? "Update" : "Save";
   modal.classList.remove("hidden");
+}
+
+function closeTaskModal() {
+  editingTask = null;
+  const saveBtn = document.getElementById("saveModal");
+  if (saveBtn) saveBtn.textContent = "Save";
+  modal.classList.add("hidden");
 }
 // Local-only favicon resolver to avoid external requests on boot
 function getFaviconUrl(url) {
@@ -281,12 +291,7 @@ function renderCalendar() {
       }
 
       td.addEventListener("click", () => {
-        activeDate = dateKey;
-        modalTitle.textContent = `Task for ${dateKey}`;
-        subjectInput.value = "";
-        descInput.value = "";
-        linkInput.value = "";
-        modal.classList.remove("hidden");
+        openTaskModal(dateKey);
         renderTaskList(dateKey);
       });
 
@@ -365,6 +370,13 @@ function renderMonthTasksView() {
       
       item.addEventListener('mouseleave', () => {
         clearTimeout(pressTimer);
+      });
+
+      item.addEventListener('dblclick', (e) => {
+        if (e.target.classList.contains('open') || e.target.classList.contains('delete-btn')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        openTaskModal(t.dateKey, t);
       });
       
       // Delete button click
@@ -594,20 +606,28 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // STEP 5 — SAVE & CLOSE LOGIC
   document.getElementById("cancelModal").onclick = () => {
-    modal.classList.add("hidden");
+    closeTaskModal();
   };
 
   document.getElementById("saveModal").onclick = () => {
     if (!subjectInput.value.trim()) return;
 
-    saveTask(activeDate, {
-      subject: subjectInput.value,
-      description: descInput.value,
-      link: linkInput.value,
-      createdAt: Date.now()
-    });
+    if (editingTask) {
+      updateTask(editingTask.dateKey, editingTask.id, {
+        subject: subjectInput.value,
+        description: descInput.value,
+        link: linkInput.value
+      });
+    } else {
+      saveTask(activeDate, {
+        subject: subjectInput.value,
+        description: descInput.value,
+        link: linkInput.value,
+        createdAt: Date.now()
+      });
+    }
 
-    modal.classList.add("hidden");
+    closeTaskModal();
     renderCalendar();
     renderTaskList(activeDate);
     renderTasksInPanel();
@@ -1039,6 +1059,7 @@ function renderTasksInPanel() {
     
     // Long press to show delete button
     let pressTimer;
+    let clickTimer = null;
     taskCard.addEventListener('mousedown', (e) => {
       if (e.target.classList.contains('task-delete-btn')) return;
       pressTimer = setTimeout(() => {
@@ -1069,6 +1090,17 @@ function renderTasksInPanel() {
         }
       }
     });
+
+    taskCard.addEventListener('dblclick', (e) => {
+      if (e.target.classList.contains('task-delete-btn')) return;
+      if (clickTimer) {
+        clearTimeout(clickTimer);
+        clickTimer = null;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      openTaskModal(task.dateKey, task);
+    });
     
     // Drag start
     taskCard.addEventListener('dragstart', (e) => {
@@ -1093,7 +1125,11 @@ function renderTasksInPanel() {
       taskCard.style.cursor = 'pointer';
       taskCard.addEventListener('click', (e) => {
         if (!e.target.classList.contains('task-delete-btn')) {
-          window.open(task.link, '_blank');
+          if (clickTimer) return;
+          clickTimer = window.setTimeout(() => {
+            clickTimer = null;
+            window.open(task.link, '_blank');
+          }, 220);
         }
       });
     }

@@ -52,6 +52,23 @@ export function deleteTask(dateKey, taskId) {
   return data[dateKey]?.length !== before || before > 0;
 }
 
+export function updateTask(dateKey, taskId, updates) {
+  const data = readJson(KEY_TASKS, {});
+  const list = data[dateKey];
+  if (!list) return false;
+
+  const task = list.find(t => t.id === taskId);
+  if (!task) return false;
+
+  if (typeof updates.subject === 'string') task.subject = updates.subject;
+  if (typeof updates.description === 'string') task.description = updates.description;
+  if (typeof updates.link === 'string') task.link = updates.link;
+  task.updatedAt = Date.now();
+
+  writeJson(KEY_TASKS, data);
+  return task;
+}
+
 export function reorderTasks(orderEntries) {
   const data = readJson(KEY_TASKS, {});
   let changed = false;
