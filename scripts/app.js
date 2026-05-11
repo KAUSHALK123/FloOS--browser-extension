@@ -90,16 +90,12 @@ function closeTaskModal() {
   if (saveBtn) saveBtn.textContent = "Save";
   modal.classList.add("hidden");
 }
-// Local-only favicon resolver to avoid external requests on boot
+// Resolve the site's favicon/logo from the saved URL.
 function getFaviconUrl(url) {
   try {
     const u = new URL(url);
-    const host = u.hostname || "";
-    // Map a couple of known hosts to bundled SVGs
-    if (host.includes("instagram.com")) return "assets/icons/instagram.svg";
-    if (host.includes("mail.google.com")) return "assets/icons/mail.svg";
-    // No external fetch for others during boot
-    return null;
+    if (u.protocol !== "http:" && u.protocol !== "https:") return null;
+    return `https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(u.href)}`;
   } catch {
     return null;
   }
@@ -172,6 +168,17 @@ function setupBookmarkDragToDelete(el, bookmark, category) {
   });
 }
 
+function buildBookmarkIconMarkup(url, title, size = 24) {
+  const initial = (title || url || "?").trim()[0]?.toUpperCase() || "?";
+  const favicon = getFaviconUrl(url);
+
+  if (!favicon) {
+    return `<span style="display:inline-flex;width:${size}px;height:${size}px;align-items:center;justify-content:center;border-radius:50%;background:rgba(255,255,255,0.08);font-size:${Math.max(11, Math.round(size * 0.45))}px;font-weight:600;">${initial}</span>`;
+  }
+
+  return `<img src="${favicon}" alt="" referrerpolicy="no-referrer" style="width:${size}px;height:${size}px;object-fit:contain;" />`;
+}
+
 function initDial() {
   dialItemEls = [];
   const orbit = document.getElementById("orbitItems");
@@ -190,13 +197,7 @@ function initDial() {
       const it = items[i];
       div.dataset.bookmarkId = it.id;
       div.dataset.bookmarkCategory = cat;
-      const favicon = getFaviconUrl(it.url);
-      if (favicon) {
-        div.innerHTML = `<img src="${favicon}" alt="">`;
-      } else {
-        const initial = (it.title || it.url || "?").trim()[0]?.toUpperCase() || "?";
-        div.innerHTML = `<span style="font-size:16px;opacity:.85">${initial}</span>`;
-      }
+      div.innerHTML = buildBookmarkIconMarkup(it.url, it.title, 24);
       div.title = it.title || it.url;
       setupBookmarkDragToDelete(div, it, cat);
       div.addEventListener("click", () => {
@@ -586,9 +587,8 @@ function renderMiniCard(category) {
     div.style.alignItems = "center";
     div.style.gap = "8px";
     div.style.position = "relative";
-    const fav = getFaviconUrl(b.url);
     div.innerHTML = `
-      <img src="${fav}" alt="" style="width:20px;height:20px;border-radius:4px;"/>
+      ${buildBookmarkIconMarkup(b.url, b.title, 24)}
       <a href="${b.url}" target="_blank" style="color:#fff;text-decoration:none;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.title}</a>
       <button data-id="${b.id}" title="Remove" style="position:absolute;right:0;background:none;border:1px solid var(--border);color:#fff;border-radius:8px;font-size:10px;padding:2px 6px;cursor:pointer;opacity:.7;">Del</button>
     `;
