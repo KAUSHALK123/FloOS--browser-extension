@@ -872,6 +872,12 @@ body {
 .left-panel .back {
   transform: rotateY(180deg);
   padding: 8px 0 10px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.left-panel .back::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 .left-panel .back .calendar-header {
   margin: 0 52px 10px 8px;

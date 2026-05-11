@@ -105,12 +105,79 @@ function getFaviconUrl(url) {
   }
 }
 
+function getActiveBookmarkCategory() {
+  return activeCategory === "dial" ? "home" : activeCategory;
+}
+
+function setupBookmarkDragToDelete(el, bookmark, category) {
+  let longPressTimer = null;
+  let dragArmed = false;
+
+  const cancelLongPress = () => {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+  };
+
+  const armDrag = () => {
+    dragArmed = true;
+    el.draggable = true;
+    el.classList.add('drag-armed');
+    el.__floOSSuppressClick = true;
+  };
+
+  const disarmDrag = () => {
+    dragArmed = false;
+    el.draggable = false;
+    el.classList.remove('drag-armed', 'dragging');
+    el.__floOSSuppressClick = false;
+  };
+
+  el.draggable = false;
+  el.addEventListener('mousedown', () => {
+    cancelLongPress();
+    longPressTimer = window.setTimeout(armDrag, 450);
+  });
+  el.addEventListener('mouseup', cancelLongPress);
+  el.addEventListener('mouseleave', cancelLongPress);
+  el.addEventListener('mouseup', () => {
+    if (dragArmed && !el.classList.contains('dragging')) {
+      el.__floOSSuppressClick = false;
+      el.draggable = false;
+      el.classList.remove('drag-armed');
+      dragArmed = false;
+    }
+  });
+
+  el.addEventListener('dragstart', (e) => {
+    if (!dragArmed) {
+      e.preventDefault();
+      return;
+    }
+    e.dataTransfer.setData('application/json', JSON.stringify({
+      type: 'bookmark',
+      id: bookmark.id,
+      title: bookmark.title,
+      url: bookmark.url,
+      category
+    }));
+    e.dataTransfer.effectAllowed = 'move';
+    el.classList.add('dragging');
+  });
+
+  el.addEventListener('dragend', () => {
+    cancelLongPress();
+    disarmDrag();
+  });
+}
+
 function initDial() {
   dialItemEls = [];
   const orbit = document.getElementById("orbitItems");
   orbit.innerHTML = "";
 
-  const cat = activeCategory === "dial" ? "home" : activeCategory;
+  const cat = getActiveBookmarkCategory();
   const items = getBookmarks(cat).slice(0, 6);
   const count = Math.max(items.length, 6);
   for (let i = 0; i < count; i++) {
@@ -121,6 +188,8 @@ function initDial() {
     div.style.transform = `rotate(${angle}deg) translate(180px) rotate(${-angle}deg)`;
     if (i < items.length) {
       const it = items[i];
+      div.dataset.bookmarkId = it.id;
+      div.dataset.bookmarkCategory = cat;
       const favicon = getFaviconUrl(it.url);
       if (favicon) {
         div.innerHTML = `<img src="${favicon}" alt="">`;
@@ -129,7 +198,14 @@ function initDial() {
         div.innerHTML = `<span style="font-size:16px;opacity:.85">${initial}</span>`;
       }
       div.title = it.title || it.url;
-      div.addEventListener("click", () => window.open(it.url, "_blank"));
+      setupBookmarkDragToDelete(div, it, cat);
+      div.addEventListener("click", () => {
+        if (div.__floOSSuppressClick) {
+          div.__floOSSuppressClick = false;
+          return;
+        }
+        window.open(it.url, "_blank");
+      });
     } else {
       div.innerHTML = `<span style="font-size:18px;opacity:.6">+</span>`;
       div.title = "Add bookmark";
@@ -503,26 +579,36 @@ function renderMiniCard(category) {
 
   items.forEach(b => {
     const div = document.createElement("div");
+    div.className = "mini-bookmark-item";
+    div.dataset.bookmarkId = b.id;
+    div.dataset.bookmarkCategory = category;
     div.style.display = "flex";
     div.style.alignItems = "center";
     div.style.gap = "8px";
     div.style.position = "relative";
-    div.setAttribute('draggable', 'true');
     const fav = getFaviconUrl(b.url);
     div.innerHTML = `
       <img src="${fav}" alt="" style="width:20px;height:20px;border-radius:4px;"/>
       <a href="${b.url}" target="_blank" style="color:#fff;text-decoration:none;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${b.title}</a>
       <button data-id="${b.id}" title="Remove" style="position:absolute;right:0;background:none;border:1px solid var(--border);color:#fff;border-radius:8px;font-size:10px;padding:2px 6px;cursor:pointer;opacity:.7;">Del</button>
     `;
+    setupBookmarkDragToDelete(div, b, category);
+    const linkEl = div.querySelector('a');
+    if (linkEl) {
+      linkEl.addEventListener('click', (e) => {
+        if (div.__floOSSuppressClick) {
+          e.preventDefault();
+          e.stopPropagation();
+          div.__floOSSuppressClick = false;
+        }
+      });
+    }
     const btn = div.querySelector("button");
     btn.addEventListener("click", (e) => {
       e.preventDefault();
       removeBookmark(category, b.id);
       renderMiniCard(category);
       initDial();
-    });
-    div.addEventListener('dragstart', (e) => {
-      e.dataTransfer.setData('application/json', JSON.stringify({ id: b.id, title: b.title, url: b.url }));
     });
     card.appendChild(div);
   });
@@ -537,7 +623,7 @@ function setupDeleteDropZone() {
   // Show drop zone when dragging tasks
   document.addEventListener('dragstart', (e) => {
     const target = e.target;
-    if (target.classList.contains('month-task-item') || target.classList.contains('task-card')) {
+    if (target.classList.contains('month-task-item') || target.classList.contains('task-card') || target.classList.contains('dial-item') || target.classList.contains('mini-bookmark-item')) {
       dropZone.classList.remove('hidden');
     }
   });
@@ -571,6 +657,14 @@ function setupDeleteDropZone() {
         renderCalendar();
         renderTasksInPanel();
         console.log('floOS: Task deleted via drag-to-delete');
+      } else if (data.type === 'bookmark') {
+        removeBookmark(data.category, data.id);
+        initDial();
+        const miniCard = document.getElementById('miniCard');
+        if (miniCard && miniCard.classList.contains('visible')) {
+          renderMiniCard(data.category);
+        }
+        console.log('floOS: Bookmark deleted via drag-to-delete');
       }
     } catch (err) {
       console.error('floOS: Error deleting task', err);
