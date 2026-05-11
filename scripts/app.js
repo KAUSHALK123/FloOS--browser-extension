@@ -308,24 +308,39 @@ function renderMonthTasksView() {
   tasksEl.innerHTML = "";
   monthBack.textContent = `${new Date(currentYear, currentMonth).toLocaleString("default", { month: "long" })} ${currentYear}`;
 
+  const compareTaskPriority = (a, b) => {
+    const aOrder = typeof a.order === 'number' ? a.order : Number.MAX_SAFE_INTEGER;
+    const bOrder = typeof b.order === 'number' ? b.order : Number.MAX_SAFE_INTEGER;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  };
+
   const totalDays = daysInMonth(currentYear, currentMonth);
-  let count = 0;
+  const monthTasks = [];
+
   for (let day = 1; day <= totalDays; day++) {
     const dateKey = formatDateKey(currentYear, currentMonth, day);
     const list = getTasks(dateKey);
     if (!list.length) continue;
-    // Sort by createdAt
-    list.sort((a,b) => (a.createdAt||0) - (b.createdAt||0));
+
     list.forEach(t => {
+      monthTasks.push({ ...t, dateKey });
+    });
+  }
+
+  monthTasks.sort(compareTaskPriority);
+
+  let count = 0;
+  monthTasks.forEach(t => {
       const item = document.createElement("div");
       item.className = "month-task-item";
       item.setAttribute('draggable', 'true');
       item.dataset.taskId = t.id;
-      item.dataset.dateKey = dateKey;
+      item.dataset.dateKey = t.dateKey;
       
       const linkHtml = t.link ? `<button class="open" onclick="window.open('${t.link}')">Open</button>` : "";
       item.innerHTML = `
-        <span class="date">${dateKey}</span>
+        <span class="date">${t.dateKey}</span>
         <div>
           <div class="title">${t.subject || "(no subject)"}</div>
           <div class="desc">${t.description || ""}</div>
@@ -357,7 +372,7 @@ function renderMonthTasksView() {
       deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (confirm(`Delete task: ${t.subject || "(no subject)"}?`)) {
-          deleteTask(dateKey, t.id);
+          deleteTask(t.dateKey, t.id);
           renderMonthTasksView();
           renderCalendar();
           renderTasksInPanel();
@@ -369,7 +384,7 @@ function renderMonthTasksView() {
         e.dataTransfer.setData('application/json', JSON.stringify({ 
           type: 'task',
           id: t.id, 
-          dateKey: dateKey,
+          dateKey: t.dateKey,
           subject: t.subject 
         }));
         item.style.opacity = '0.5';
@@ -381,8 +396,8 @@ function renderMonthTasksView() {
       
       tasksEl.appendChild(item);
       count++;
-    });
-  }
+  });
+
   if (count === 0) {
     const empty = document.createElement("div");
     empty.style.opacity = ".7";
