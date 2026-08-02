@@ -1,4 +1,4 @@
-import { saveTask, getTasks, getBookmarks, addBookmark, removeBookmark, deleteTask, reorderTasks, updateTask, saveMemoryItem, getAllMemoryItems, getNotes, saveNote, deleteNote, createNote } from "./storage.js";
+import { saveTask, getTasks, getBookmarks, addBookmark, removeBookmark, deleteTask, reorderTasks, updateTask, saveMemoryItem, getAllMemoryItems, getNotes, saveNote, deleteNote, createNote, isVaultInitialized, initializeVault, getVaultSecrets, saveVaultSecret, deleteVaultSecret } from "./storage.js";
 // Calendar data helpers inlined to avoid ES module loading issues
 const STORAGE_KEY = "floOS_calendar_v1";
 
@@ -983,6 +983,249 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // Render tasks in right panel
   renderTasksInPanel();
+
+  // ===== Vault (Secret Manager) Controller =====
+  let vaultPassword = null;
+  let vaultSecrets = [];
+  let currentEditingSecret = null;
+
+  const vaultUnlockBtn = document.getElementById('vaultUnlockBtn');
+  const vaultOverlay = document.getElementById('vaultOverlay');
+  const vaultCloseBtn = document.getElementById('vaultCloseBtn');
+  const vaultPasswordInput = document.getElementById('vaultPasswordInput');
+  const vaultPromptTitle = document.getElementById('vaultPromptTitle');
+  const vaultLoadoutScreen = document.getElementById('vaultLoadoutScreen');
+  const vaultDashboard = document.getElementById('vaultDashboard');
+  const vaultSecretsGrid = document.getElementById('vaultSecretsGrid');
+  const addSecretBtn = document.getElementById('addSecretBtn');
+  const secretModal = document.getElementById('secretModal');
+  const cancelSecretModal = document.getElementById('cancelSecretModal');
+  const saveSecretBtn = document.getElementById('saveSecret');
+  
+  const secretTitle = document.getElementById('secretTitle');
+  const secretUsername = document.getElementById('secretUsername');
+  const secretValue = document.getElementById('secretValue');
+  const toggleSecretVisibilityBtn = document.getElementById('toggleSecretVisibilityBtn');
+
+  if (vaultUnlockBtn) {
+    vaultUnlockBtn.addEventListener('click', () => {
+      // Open overlay and show prompt
+      vaultOverlay.classList.remove('hidden');
+      vaultLoadoutScreen.classList.remove('hidden');
+      vaultDashboard.classList.add('hidden');
+      vaultPasswordInput.value = '';
+      vaultPasswordInput.classList.remove('error');
+      vaultPasswordInput.focus();
+
+      // Check if vault has been initialized
+      if (!isVaultInitialized()) {
+        vaultPromptTitle.textContent = "INITIALIZE VAULT (CHOOSE A PASSWORD)";
+        vaultPasswordInput.placeholder = "New Password...";
+      } else {
+        vaultPromptTitle.textContent = "VAULT SECURED";
+        vaultPasswordInput.placeholder = "Enter Password...";
+      }
+    });
+  }
+
+  if (vaultCloseBtn) {
+    vaultCloseBtn.addEventListener('click', () => {
+      vaultOverlay.classList.add('hidden');
+      vaultPassword = null;
+      vaultSecrets = [];
+    });
+  }
+
+  if (vaultPasswordInput) {
+    vaultPasswordInput.addEventListener('keydown', async (e) => {
+      if (e.key === 'Enter') {
+        const inputPass = vaultPasswordInput.value.trim();
+        if (!inputPass) return;
+
+        try {
+          if (!isVaultInitialized()) {
+            // First time initialization
+            await initializeVault(inputPass);
+            console.log('floOS: Vault initialized successfully');
+          }
+
+          // Attempt decryption with password
+          const decrypted = await getVaultSecrets(inputPass);
+          if (decrypted !== null) {
+            vaultPassword = inputPass;
+            vaultSecrets = decrypted;
+            console.log('floOS: Vault unlocked successfully');
+
+            // Play loading animation layout transition
+            setTimeout(() => {
+              vaultLoadoutScreen.classList.add('hidden');
+              vaultDashboard.classList.remove('hidden');
+              renderVaultSecrets();
+            }, 600);
+          } else {
+            throw new Error("Wrong password");
+          }
+        } catch (err) {
+          console.error("Vault unlock failed:", err);
+          vaultPasswordInput.classList.add('error');
+          setTimeout(() => {
+            vaultPasswordInput.classList.remove('error');
+          }, 400);
+        }
+      }
+    });
+  }
+
+  function renderVaultSecrets() {
+    if (!vaultSecretsGrid) return;
+    vaultSecretsGrid.innerHTML = '';
+
+    if (vaultSecrets.length === 0) {
+      vaultSecretsGrid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; opacity: 0.6; padding: 40px; font-family: Garamond, serif; font-size: 18px; color: #ff3333; text-shadow: 0 0 5px #f00;">VAULT EMPTY - ADD SECRETS</div>`;
+      return;
+    }
+
+    vaultSecrets.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'secret-card';
+      card.innerHTML = `
+        <div class="secret-card-header">
+          <span class="secret-card-title">${escapeHtml(item.title)}</span>
+        </div>
+        <div class="secret-card-body">
+          ${item.username ? `
+          <div class="secret-field">
+            <span style="opacity: 0.7; font-size: 11px;">USER</span>
+            <span class="sec-user">${escapeHtml(item.username)}</span>
+            <button class="secret-copy-btn copy-user-btn" data-val="${escapeHtml(item.username)}">Copy</button>
+          </div>` : ''}
+          <div class="secret-field">
+            <span style="opacity: 0.7; font-size: 11px;">PASS</span>
+            <span class="sec-pass">••••••••</span>
+            <button class="secret-copy-btn copy-pass-btn" data-val="${escapeHtml(item.value)}">Copy</button>
+          </div>
+        </div>
+        <div class="secret-card-actions">
+          <button class="secret-card-btn edit-secret-btn" data-id="${item.id}">Edit</button>
+          <button class="secret-card-btn delete-secret-btn" data-id="${item.id}">Delete</button>
+        </div>
+      `;
+
+      // Copy username event
+      const copyUser = card.querySelector('.copy-user-btn');
+      if (copyUser) {
+        copyUser.addEventListener('click', () => {
+          navigator.clipboard.writeText(copyUser.getAttribute('data-val'));
+          copyUser.textContent = 'Copied!';
+          setTimeout(() => { copyUser.textContent = 'Copy'; }, 1500);
+        });
+      }
+
+      // Copy password event
+      const copyPass = card.querySelector('.copy-pass-btn');
+      if (copyPass) {
+        copyPass.addEventListener('click', () => {
+          navigator.clipboard.writeText(copyPass.getAttribute('data-val'));
+          copyPass.textContent = 'Copied!';
+          setTimeout(() => { copyPass.textContent = 'Copy'; }, 1500);
+        });
+      }
+
+      // Edit event
+      card.querySelector('.edit-secret-btn').addEventListener('click', () => {
+        currentEditingSecret = item;
+        const secretModalTitle = document.getElementById('secretModalTitle');
+        if (secretModalTitle) secretModalTitle.textContent = "Edit Secret";
+        secretTitle.value = item.title;
+        secretUsername.value = item.username;
+        secretValue.value = item.value;
+        secretValue.type = "password";
+        toggleSecretVisibilityBtn.textContent = "👁️";
+        secretModal.classList.remove('hidden');
+      });
+
+      // Delete event
+      card.querySelector('.delete-secret-btn').addEventListener('click', async () => {
+        if (confirm(`Delete secret for "${item.title}"?`)) {
+          try {
+            vaultSecrets = await deleteVaultSecret(vaultPassword, item.id);
+            renderVaultSecrets();
+          } catch (err) {
+            console.error("Delete secret failed:", err);
+          }
+        }
+      });
+
+      vaultSecretsGrid.appendChild(card);
+    });
+  }
+
+  // Helper escape
+  function escapeHtml(str) {
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  }
+
+  if (addSecretBtn) {
+    addSecretBtn.addEventListener('click', () => {
+      currentEditingSecret = null;
+      const secretModalTitle = document.getElementById('secretModalTitle');
+      if (secretModalTitle) secretModalTitle.textContent = "New Secret";
+      secretTitle.value = '';
+      secretUsername.value = '';
+      secretValue.value = '';
+      secretValue.type = "password";
+      toggleSecretVisibilityBtn.textContent = "👁️";
+      secretModal.classList.remove('hidden');
+    });
+  }
+
+  if (cancelSecretModal) {
+    cancelSecretModal.addEventListener('click', () => {
+      secretModal.classList.add('hidden');
+    });
+  }
+
+  if (toggleSecretVisibilityBtn) {
+    toggleSecretVisibilityBtn.addEventListener('click', () => {
+      if (secretValue.type === "password") {
+        secretValue.type = "text";
+        toggleSecretVisibilityBtn.textContent = "🙈";
+      } else {
+        secretValue.type = "password";
+        toggleSecretVisibilityBtn.textContent = "👁️";
+      }
+    });
+  }
+
+  if (saveSecretBtn) {
+    saveSecretBtn.addEventListener('click', async () => {
+      const title = secretTitle.value.trim();
+      const user = secretUsername.value.trim();
+      const val = secretValue.value.trim();
+
+      if (!title || !val) {
+        alert("Please enter Title and Secret Value!");
+        return;
+      }
+
+      try {
+        const itemToSave = {
+          title,
+          username: user,
+          value: val
+        };
+        if (currentEditingSecret) {
+          itemToSave.id = currentEditingSecret.id;
+        }
+
+        vaultSecrets = await saveVaultSecret(vaultPassword, itemToSave);
+        secretModal.classList.add('hidden');
+        renderVaultSecrets();
+      } catch (err) {
+        console.error("Save secret failed:", err);
+      }
+    });
+  }
 });
 
 // ===== Internet-synced clock =====

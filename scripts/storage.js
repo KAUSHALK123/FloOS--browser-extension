@@ -255,3 +255,123 @@ export function createNote(title = "New Note", content = "") {
   return note;
 }
 
+// ===== Vault Crypto & Storage =====
+const KEY_VAULT = "floOS_vault_v1";
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+function bufToHex(buf) {
+  return Array.from(new Uint8Array(buf))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function hexToBuf(hex) {
+  const view = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < view.length; i++) {
+    view[i] = parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+  }
+  return view;
+}
+
+async function getEncryptionKey(password, salt) {
+  const baseKey = await window.crypto.subtle.importKey(
+    "raw",
+    enc.encode(password),
+    { name: "PBKDF2" },
+    false,
+    ["deriveBits", "deriveKey"]
+  );
+  return window.crypto.subtle.deriveKey(
+    {
+      name: "PBKDF2",
+      salt: salt,
+      iterations: 100000,
+      hash: "SHA-256"
+    },
+    baseKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"]
+  );
+}
+
+export async function encryptData(plaintext, password) {
+  const salt = window.crypto.getRandomValues(new Uint8Array(16));
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const key = await getEncryptionKey(password, salt);
+  const encrypted = await window.crypto.subtle.encrypt(
+    { name: "AES-GCM", iv: iv },
+    key,
+    enc.encode(plaintext)
+  );
+  return `${bufToHex(salt)}:${bufToHex(iv)}:${bufToHex(new Uint8Array(encrypted))}`;
+}
+
+export async function decryptData(encryptedStr, password) {
+  const parts = encryptedStr.split(":");
+  if (parts.length !== 3) throw new Error("Invalid encrypted format");
+  const salt = hexToBuf(parts[0]);
+  const iv = hexToBuf(parts[1]);
+  const ciphertext = hexToBuf(parts[2]);
+  const key = await getEncryptionKey(password, salt);
+  const decrypted = await window.crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: iv },
+    key,
+    ciphertext
+  );
+  return dec.decode(decrypted);
+}
+
+// Vault CRUD
+export function isVaultInitialized() {
+  return localStorage.getItem(KEY_VAULT) !== null;
+}
+
+export async function initializeVault(password) {
+  const emptyVault = [];
+  const ciphertext = await encryptData(JSON.stringify(emptyVault), password);
+  localStorage.setItem(KEY_VAULT, ciphertext);
+  return emptyVault;
+}
+
+export async function getVaultSecrets(password) {
+  const ciphertext = localStorage.getItem(KEY_VAULT);
+  if (!ciphertext) return null;
+  const decryptedStr = await decryptData(ciphertext, password);
+  return JSON.parse(decryptedStr);
+}
+
+export async function saveVaultSecret(password, secretItem) {
+  const secrets = await getVaultSecrets(password);
+  if (!secrets) throw new Error("Vault not unlocked or wrong password");
+  
+  const index = secrets.findIndex(s => s.id === secretItem.id);
+  if (index !== -1) {
+    secrets[index] = { ...secrets[index], ...secretItem, updatedAt: Date.now() };
+  } else {
+    secrets.push({
+      id: crypto.randomUUID(),
+      title: secretItem.title,
+      username: secretItem.username || "",
+      value: secretItem.value,
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+  }
+  
+  const newCiphertext = await encryptData(JSON.stringify(secrets), password);
+  localStorage.setItem(KEY_VAULT, newCiphertext);
+  return secrets;
+}
+
+export async function deleteVaultSecret(password, secretId) {
+  const secrets = await getVaultSecrets(password);
+  if (!secrets) throw new Error("Vault not unlocked or wrong password");
+  
+  const filtered = secrets.filter(s => s.id !== secretId);
+  const newCiphertext = await encryptData(JSON.stringify(filtered), password);
+  localStorage.setItem(KEY_VAULT, newCiphertext);
+  return filtered;
+}
+
