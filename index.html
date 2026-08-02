@@ -23,11 +23,23 @@
 
   <!-- TOP CATEGORY NAV -->
   <div class="category-nav">
-    <div class="bubble active" data-cat="dial">Home</div>
-    <div class="bubble" data-cat="social">Social</div>
-    <div class="bubble" data-cat="work">Work</div>
+    <div class="glass-radio-group">
+      <input type="radio" name="category" id="glass-home" data-cat="dial" checked />
+      <label for="glass-home">Home</label>
+
+      <input type="radio" name="category" id="glass-social" data-cat="social" />
+      <label for="glass-social">Social</label>
+
+      <input type="radio" name="category" id="glass-work" data-cat="work" />
+      <label for="glass-work">Work</label>
+
+      <input type="radio" name="category" id="glass-notes" data-cat="notes" />
+      <label for="glass-notes">Notes</label>
+
+      <div class="glass-glider"></div>
+    </div>
+    
     <div class="bubble plus-btn" id="addBookmarkBtn">+</div>
-    <div class="bubble" id="notesToggleBtn" data-cat="notes">Notes</div>
     <div class="bubble plus-btn hidden add-note-btn" id="addNoteBtn">+ Add Note</div>
   </div>
 

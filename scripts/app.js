@@ -816,13 +816,12 @@ window.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-    // Category nav handlers
-    document.querySelectorAll('.category-nav .bubble').forEach(bub => {
-      const cat = bub.getAttribute('data-cat');
-      if (!cat) return;
-      bub.addEventListener('click', () => {
-        document.querySelectorAll('.category-nav .bubble').forEach(x => x.classList.remove('active'));
-        bub.classList.add('active');
+    // Category nav handlers using radio group inputs
+    document.querySelectorAll('.glass-radio-group input[type="radio"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        const cat = radio.getAttribute('data-cat');
+        if (!cat) return;
+        
         const wasSocial = activeCategory === 'social';
         activeCategory = cat;
         initDial();
