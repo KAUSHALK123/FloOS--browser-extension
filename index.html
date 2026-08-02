@@ -26,9 +26,9 @@
     <div class="bubble active" data-cat="dial">Home</div>
     <div class="bubble" data-cat="social">Social</div>
     <div class="bubble" data-cat="work">Work</div>
-    <div class="bubble plus-btn" id="addBookmarkBtn">
-      +
-    </div>
+    <div class="bubble plus-btn" id="addBookmarkBtn">+</div>
+    <div class="bubble" id="notesToggleBtn" data-cat="notes">Notes</div>
+    <div class="bubble plus-btn hidden add-note-btn" id="addNoteBtn">+ Add Note</div>
   </div>
 
   <!-- MAIN LAYOUT -->
@@ -69,6 +69,9 @@
         </div>
       </div>
 
+      <!-- NOTES GRID VIEW -->
+      <div id="notesGrid" class="notes-grid hidden"></div>
+
       <div id="miniCard"></div>
     </section>
 
@@ -78,9 +81,19 @@
         <p style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--primary-glow);margin:0;">
           Agent FloOs
         </p>
-        <button id="settingsBtn" class="settings-icon-btn" title="Settings">
-          ⚙
-        </button>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <div class="switch-container">
+            <input class="toggle-checkbox" id="toggle-switch" type="checkbox" />
+            <label class="switch" for="toggle-switch">
+              <div class="toggle">
+                <div class="led"></div>
+              </div>
+            </label>
+          </div>
+          <button id="settingsBtn" class="settings-icon-btn" title="Settings">
+            ⚙
+          </button>
+        </div>
       </div>
 
       <div class="chat-area" id="chatArea">

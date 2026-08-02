@@ -1,4 +1,4 @@
-import { saveTask, getTasks, getBookmarks, addBookmark, removeBookmark, deleteTask, reorderTasks, updateTask, saveMemoryItem, getAllMemoryItems } from "./storage.js";
+import { saveTask, getTasks, getBookmarks, addBookmark, removeBookmark, deleteTask, reorderTasks, updateTask, saveMemoryItem, getAllMemoryItems, getNotes, saveNote, deleteNote, createNote } from "./storage.js";
 // Calendar data helpers inlined to avoid ES module loading issues
 const STORAGE_KEY = "floOS_calendar_v1";
 
@@ -683,6 +683,71 @@ window.addEventListener("DOMContentLoaded", () => {
   renderCalendar();
   console.log("floOS: app.js initialized");
 
+  // Notes toggle and grid implementation
+  const notesToggleBtn = document.getElementById("notesToggleBtn");
+  const addNoteBtn = document.getElementById("addNoteBtn");
+  const notesGrid = document.getElementById("notesGrid");
+  const mainDial = document.getElementById("mainDial");
+
+  function renderNotesGrid() {
+    if (!notesGrid) return;
+    notesGrid.innerHTML = "";
+    const notes = getNotes();
+
+    notes.forEach(note => {
+      const noteCard = document.createElement("div");
+      noteCard.className = "note-card";
+      noteCard.dataset.noteId = note.id;
+
+      noteCard.innerHTML = `
+        <div class="note-card-header">
+          <input type="text" class="note-card-title" value="${note.title || ''}" placeholder="Note Title" />
+          <div class="note-card-actions">
+            <button class="note-action-btn delete-note-btn" title="Delete Note">🗑️</button>
+          </div>
+        </div>
+        <div class="note-card-body">
+          <textarea class="note-card-textarea" placeholder="Type notes here...">${note.content || ''}</textarea>
+        </div>
+      `;
+
+      const textarea = noteCard.querySelector(".note-card-textarea");
+      const titleInput = noteCard.querySelector(".note-card-title");
+      const deleteBtn = noteCard.querySelector(".delete-note-btn");
+
+      // Save on typing
+      textarea.addEventListener("input", () => {
+        saveNote(note.id, titleInput.value, textarea.value);
+      });
+
+      titleInput.addEventListener("input", () => {
+        saveNote(note.id, titleInput.value, textarea.value);
+      });
+
+      deleteBtn.addEventListener("click", () => {
+        if (confirm(`Delete note: "${titleInput.value || 'Untitled Note'}"?`)) {
+          deleteNote(note.id);
+          renderNotesGrid();
+        }
+      });
+
+      notesGrid.appendChild(noteCard);
+    });
+  }
+
+  if (addNoteBtn) {
+    addNoteBtn.addEventListener("click", () => {
+      createNote("New Note", "");
+      renderNotesGrid();
+      // Scroll to the bottom of the grid to show the newly added note
+      if (notesGrid) {
+        setTimeout(() => {
+          notesGrid.scrollTo({ top: notesGrid.scrollHeight, behavior: 'smooth' });
+        }, 50);
+      }
+    });
+  }
+
   // Setup delete drop zone
   setupDeleteDropZone();
 
@@ -761,6 +826,21 @@ window.addEventListener("DOMContentLoaded", () => {
         const wasSocial = activeCategory === 'social';
         activeCategory = cat;
         initDial();
+        
+        // Show/hide Notes Grid based on category selection
+        if (cat === 'notes') {
+          if (mainDial) mainDial.classList.add("hidden");
+          if (notesGrid) {
+            notesGrid.classList.remove("hidden");
+            renderNotesGrid();
+          }
+          if (addNoteBtn) addNoteBtn.classList.remove("hidden");
+        } else {
+          if (mainDial) mainDial.classList.remove("hidden");
+          if (notesGrid) notesGrid.classList.add("hidden");
+          if (addNoteBtn) addNoteBtn.classList.add("hidden");
+        }
+
         const card = document.getElementById('miniCard');
         if (cat === 'social') {
           if (wasSocial && card && card.classList.contains('visible')) {
@@ -774,12 +854,10 @@ window.addEventListener("DOMContentLoaded", () => {
           card.innerHTML = '';
         }
       });
-
-      // Do not show miniCard by default to keep dial unobstructed
     });
 
     // Plus bubble opens add-bookmark prompt for current category
-    const plus = document.querySelector('.category-nav .plus-btn');
+    const plus = document.getElementById('addBookmarkBtn');
     if (plus) {
       plus.addEventListener('click', () => {
         const mapped = activeCategory === 'dial' ? 'home' : activeCategory;
@@ -801,6 +879,31 @@ window.addEventListener("DOMContentLoaded", () => {
       settingsBtn.addEventListener('click', () => {
         console.log('floOS: Settings button clicked (not functional yet)');
         // TODO: Add settings functionality later
+      });
+    }
+
+    // Theme toggle logic
+    const toggleSwitch = document.getElementById('toggle-switch');
+    const currentTheme = localStorage.getItem('floOS_theme') || 'dark';
+    if (currentTheme === 'light') {
+      document.body.classList.add('light-theme');
+      if (toggleSwitch) toggleSwitch.checked = true;
+    } else {
+      document.body.classList.remove('light-theme');
+      if (toggleSwitch) toggleSwitch.checked = false;
+    }
+
+    if (toggleSwitch) {
+      toggleSwitch.addEventListener('change', () => {
+        if (toggleSwitch.checked) {
+          document.body.classList.add('light-theme');
+          localStorage.setItem('floOS_theme', 'light');
+          console.log('floOS: Theme set to light mode');
+        } else {
+          document.body.classList.remove('light-theme');
+          localStorage.setItem('floOS_theme', 'dark');
+          console.log('floOS: Theme set to dark mode');
+        }
       });
     }
 

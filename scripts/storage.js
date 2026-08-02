@@ -182,3 +182,76 @@ export async function getAllMemoryItems() {
   });
   return items;
 }
+
+// ===== Notes Storage =====
+const KEY_NOTES = "floOS_notes_v1";
+
+const DEFAULT_NOTES = [
+  {
+    id: "note-movies",
+    title: "Movies to be watched",
+    content: "Dune 2\nOppenheimer\nMatrix 4\nAlien: Romulus"
+  },
+  {
+    id: "note-buy",
+    title: "To Buy List",
+    content: "New Keyboard\nM2 Macbook Case\nEspresso Machine\nCoffee Beans"
+  },
+  {
+    id: "note-project",
+    title: "Major Project Specs",
+    content: "-Finalize UX flow\n-API integration\n-Deployment plan\n-Siva check-in"
+  },
+  {
+    id: "note-thoughts",
+    title: "Random Thoughts",
+    content: "Start a blog\nVacation in Japan\nLearn Python faster\nCall Mom"
+  }
+];
+
+export function getNotes() {
+  const notes = readJson(KEY_NOTES, null);
+  if (notes === null) {
+    writeJson(KEY_NOTES, DEFAULT_NOTES);
+    return DEFAULT_NOTES;
+  }
+  return notes;
+}
+
+export function saveNote(id, title, content) {
+  const notes = getNotes();
+  const index = notes.findIndex(n => n.id === id);
+  if (index !== -1) {
+    notes[index].title = title;
+    notes[index].content = content;
+    notes[index].updatedAt = Date.now();
+  } else {
+    notes.push({
+      id: id || crypto.randomUUID(),
+      title,
+      content,
+      updatedAt: Date.now()
+    });
+  }
+  writeJson(KEY_NOTES, notes);
+}
+
+export function deleteNote(id) {
+  let notes = getNotes();
+  notes = notes.filter(n => n.id !== id);
+  writeJson(KEY_NOTES, notes);
+}
+
+export function createNote(title = "New Note", content = "") {
+  const note = {
+    id: crypto.randomUUID(),
+    title,
+    content,
+    updatedAt: Date.now()
+  };
+  const notes = getNotes();
+  notes.push(note);
+  writeJson(KEY_NOTES, notes);
+  return note;
+}
+
