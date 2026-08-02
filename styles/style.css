@@ -300,12 +300,17 @@ body.light-theme .bubble:hover:not(.active) {
 }
 
 .bubble.plus-btn {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: bold;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 16px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  padding: 0;
+  line-height: 38px;
+  box-sizing: border-box;
 }
 
 /* --- DELETE DROP ZONE --- */

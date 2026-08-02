@@ -827,6 +827,7 @@ window.addEventListener("DOMContentLoaded", () => {
         initDial();
         
         // Show/hide Notes Grid based on category selection
+        const bookmarkBtn = document.getElementById('addBookmarkBtn');
         if (cat === 'notes') {
           if (mainDial) mainDial.classList.add("hidden");
           if (notesGrid) {
@@ -834,10 +835,12 @@ window.addEventListener("DOMContentLoaded", () => {
             renderNotesGrid();
           }
           if (addNoteBtn) addNoteBtn.classList.remove("hidden");
+          if (bookmarkBtn) bookmarkBtn.classList.add("hidden");
         } else {
           if (mainDial) mainDial.classList.remove("hidden");
           if (notesGrid) notesGrid.classList.add("hidden");
           if (addNoteBtn) addNoteBtn.classList.add("hidden");
+          if (bookmarkBtn) bookmarkBtn.classList.remove("hidden");
         }
 
         const card = document.getElementById('miniCard');
