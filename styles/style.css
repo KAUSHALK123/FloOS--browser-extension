@@ -2417,3 +2417,7 @@ body.light-theme .note-action-btn:hover {
   color: #ff3333;
 }
 
+.vault-modal {
+  z-index: 10100 !important;
+}
+

@@ -1,4 +1,4 @@
-import { saveTask, getTasks, getBookmarks, addBookmark, removeBookmark, deleteTask, reorderTasks, updateTask, saveMemoryItem, getAllMemoryItems, getNotes, saveNote, deleteNote, createNote, isVaultInitialized, initializeVault, getVaultSecrets, saveVaultSecret, deleteVaultSecret } from "./storage.js";
+import { saveTask, getTasks, getBookmarks, addBookmark, removeBookmark, deleteTask, reorderTasks, updateTask, saveMemoryItem, getAllMemoryItems, getNotes, saveNote, deleteNote, createNote, isVaultInitialized, initializeVault, getVaultSecrets, saveVaultSecret, deleteVaultSecret, generateUUID } from "./storage.js";
 // Calendar data helpers inlined to avoid ES module loading issues
 const STORAGE_KEY = "floOS_calendar_v1";
 
@@ -532,7 +532,7 @@ function openTaskPrompt(dateKey) {
   const link = prompt("Link (optional)");
 
   addTask({
-    id: crypto.randomUUID(),
+    id: generateUUID(),
     date: dateKey,
     time,
     title,

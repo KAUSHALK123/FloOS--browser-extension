@@ -2,6 +2,16 @@
 const KEY_TASKS = "floOS_tasks_v1";
 const KEY_BOOKMARKS = "floOS_bookmarks_v1";
 
+export function generateUUID() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  // Fallback UUID v4 generator
+  return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, c =>
+    (+c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> +c / 4).toString(16)
+  );
+}
+
 function readJson(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
@@ -26,7 +36,7 @@ export function saveTask(dateKey, task) {
   if (!data[dateKey]) data[dateKey] = [];
   const createdAt = task.createdAt || Date.now();
   const toSave = {
-    id: crypto.randomUUID(),
+    id: generateUUID(),
     subject: task.subject || "",
     description: task.description || "",
     link: task.link || "",
@@ -103,7 +113,7 @@ export function addBookmark(category, bookmark) {
   const data = readJson(KEY_BOOKMARKS, {});
   if (!data[category]) data[category] = [];
   const toSave = {
-    id: crypto.randomUUID(),
+    id: generateUUID(),
     title: bookmark.title?.trim() || bookmark.url,
     url: bookmark.url,
     createdAt: Date.now(),
@@ -150,7 +160,7 @@ export async function saveMemoryItem(item) {
   const tx = db.transaction(STORE_MEMORY, 'readwrite');
   const store = tx.objectStore(STORE_MEMORY);
   const record = {
-    id: crypto.randomUUID(),
+    id: generateUUID(),
     type: item.type,
     content: item.content,
     created_at: item.created_at || Date.now(),
@@ -227,7 +237,7 @@ export function saveNote(id, title, content) {
     notes[index].updatedAt = Date.now();
   } else {
     notes.push({
-      id: id || crypto.randomUUID(),
+      id: id || generateUUID(),
       title,
       content,
       updatedAt: Date.now()
@@ -244,7 +254,7 @@ export function deleteNote(id) {
 
 export function createNote(title = "New Note", content = "") {
   const note = {
-    id: crypto.randomUUID(),
+    id: generateUUID(),
     title,
     content,
     updatedAt: Date.now()
@@ -351,7 +361,7 @@ export async function saveVaultSecret(password, secretItem) {
     secrets[index] = { ...secrets[index], ...secretItem, updatedAt: Date.now() };
   } else {
     secrets.push({
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       title: secretItem.title,
       username: secretItem.username || "",
       value: secretItem.value,
